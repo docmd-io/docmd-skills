@@ -104,7 +104,7 @@ Official shorthand names (e.g. `"search"`) resolve to `@docmd/plugin-<name>`. Th
 "llms": {}                      // No config needed. Generates llms.txt and llms-full.txt at build time.
 ```
 - `llms.txt` = short summary with page links
-- `llms-full.txt` = full content of all pages, optimized for LLM context windows
+- `llms-full.txt` = full content of all pages, optimised for LLM context windows
 - Exclude pages with `llms: false` in frontmatter
 
 ## PWA
