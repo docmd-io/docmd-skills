@@ -74,42 +74,12 @@ https://docs.docmd.io/llms-full.txt
 | [validation.md](./references/validation.md) | Link checking and CI/CD |
 | [deployment.md](./references/deployment.md) | GitHub template, Actions, Docker |
 
-## GitHub Template
-
-[![Use this template](https://img.shields.io/badge/template-launch_repo_with_docmd-blue?style=flat-square&logo=github)](https://github.com/docmd-io/docmd-template/generate)
-
-The fastest way to start:
-
-1. Click **[Use this template](https://github.com/docmd-io/docmd-template/generate)**
-2. Update `docmd.config.json` with your site title and URL
-3. Push to `main` — your site deploys automatically
-
-## GitHub Actions
-
-[![Marketplace](https://img.shields.io/badge/actions-build_&_deploy_with_docmd-blue?style=flat-square&logo=github)](https://github.com/marketplace/actions/build-and-deploy-documentation-with-docmd)
-
-Add to any workflow:
-
-```yaml
-- uses: docmd-io/deploy@v1.1
-```
-
-Or use the reusable workflow:
-
-```yaml
-jobs:
-  docs:
-    uses: docmd-io/deploy/.github/workflows/deploy.yml@v1.1
-```
-
 ## How Agents Should Use This
 
 1. **Start with `SKILL.md`** — Quick reference and overview
 2. **Read specific references** — As needed for your task
 3. **Use MCP for live access** — Connect directly to docmd workspace
 4. **Fetch `llms-full.txt`** — For comprehensive documentation context
-cd .docmd-skills && git pull
-```
 
 ## Contributing
 
