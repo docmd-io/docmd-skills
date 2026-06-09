@@ -1,18 +1,6 @@
-<div align="center">
+# Agent Skills for docmd
 
-  <h3>
-    <a href="https://docmd.io">
-      <img src="https://github.com/docmd-io/docmd/blob/main/packages/ui/assets/images/docmd-logo-dark.png?raw=true" alt="docmd logo" width="150" />
-    </a>
-  </h3>
-
-  <p>
-    <b>Agent Skills for docmd</b>
-    <br/>
-    AI agent instructions for <a href="https://github.com/docmd-io/docmd">docmd</a> — the zero-config AI-first documentation engine.
-  </p>
-
-</div>
+AI agent instructions for [docmd](https://github.com/docmd-io/docmd) — the zero-config AI-first documentation engine.
 
 ## What is this?
 
