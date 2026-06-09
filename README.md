@@ -9,23 +9,26 @@
   <p>
     <b>Agent Skills for docmd</b>
     <br/>
-    A modular instruction set for AI agents to understand and work with <a href="https://github.com/docmd-io/docmd">docmd</a> documentation projects.
+    AI agent instructions for <a href="https://github.com/docmd-io/docmd">docmd</a> — the zero-config AI-first documentation engine.
   </p>
 
 </div>
 
 ## What is this?
 
-This repository is the **single source of truth** for AI agents working with docmd. It contains concise, structured skill files that teach AI coding assistants, chat LLMs, and IDE agents how to create, configure, build, and deploy documentation using docmd.
+This repository contains structured skill files for AI agents working with docmd. It teaches AI coding assistants, chat LLMs, and IDE agents how to create, configure, build, and deploy documentation using docmd.
+
+**Structure:**
+- `SKILL.md` — Main entry point with quick reference
+- `references/` — Detailed documentation for each topic
 
 ## Quick Start
 
 ### For AI Coding Agents (Cursor, Windsurf, Cline, etc.)
 
-Point your agent to this repo as a context source. Most agents support fetching remote instructions:
+Point your agent to the main skill file:
 
 ```
-# In your agent's system prompt or context settings, add:
 https://raw.githubusercontent.com/docmd-io/docmd-skills/main/SKILL.md
 ```
 
@@ -39,15 +42,11 @@ Then instruct your agent: *"Read `.docmd-skills/SKILL.md` for docmd instructions
 
 ### For Claude / ChatGPT / Other Chat LLMs
 
-Paste the contents of [SKILL.md](./SKILL.md) into your system prompt, or reference specific modules as needed:
-
-```
-Read the docmd skill files at https://github.com/docmd-io/docmd-skills for instructions on how to work with docmd documentation projects.
-```
+Paste the contents of [SKILL.md](./SKILL.md) into your system prompt, or reference specific reference files as needed.
 
 ### For MCP-Enabled Agents
 
-If your agent supports MCP (Model Context Protocol), connect directly to a docmd workspace:
+Connect directly to a docmd workspace:
 
 ```json
 {
@@ -61,43 +60,66 @@ If your agent supports MCP (Model Context Protocol), connect directly to a docmd
 }
 ```
 
-This gives the agent live access to search, read, and validate docs without needing these skill files.
+This gives the agent live access to search, read, and validate docs.
 
 ### For Full Documentation Context
 
-Every docmd site generates `llms.txt` and `llms-full.txt` at build time. Fetch the full context from any deployed docmd site:
+Every docmd site generates `llms.txt` and `llms-full.txt` at build time:
 
 ```
 https://docs.docmd.io/llms-full.txt
 ```
 
-## Skill Modules
+## Reference Files
 
-| Module | Description |
+| File | Description |
 |:--|:--|
-| [SKILL.md](./SKILL.md) | Index — start here, links to all modules |
-| [cli.md](./cli.md) | Installation, all CLI commands, flags, and options |
-| [config.md](./config.md) | `docmd.config.json` full schema with defaults |
-| [plugins.md](./plugins.md) | Every built-in plugin with all config keys and defaults |
-| [plugin-development.md](./plugin-development.md) | Hook signatures, lifecycle, custom plugin creation |
-| [formatting.md](./formatting.md) | Containers, frontmatter, self-closing syntax rules |
-| [api.md](./api.md) | Node.js build API, browser API, MCP server, URL utilities |
-| [validation.md](./validation.md) | Link checking and CI/CD integration |
+| [cli.md](./references/cli.md) | All CLI commands, flags, and options |
+| [config.md](./references/config.md) | Complete configuration schema |
+| [workspaces.md](./references/workspaces.md) | Multi-project workspace setup |
+| [plugins.md](./references/plugins.md) | Built-in plugins and configuration |
+| [plugin-development.md](./references/plugin-development.md) | Custom plugin development |
+| [formatting.md](./references/formatting.md) | Markdown extensions and containers |
+| [api.md](./references/api.md) | Node.js API, browser API, MCP server |
+| [engines.md](./references/engines.md) | Build engine architecture (JS/Rust) |
+| [migration.md](./references/migration.md) | Migrate from other frameworks |
+| [validation.md](./references/validation.md) | Link checking and CI/CD |
+| [deployment.md](./references/deployment.md) | GitHub template, Actions, Docker |
+
+## GitHub Template
+
+[![Use this template](https://img.shields.io/badge/template-launch_repo_with_docmd-blue?style=flat-square&logo=github)](https://github.com/docmd-io/docmd-template/generate)
+
+The fastest way to start:
+
+1. Click **[Use this template](https://github.com/docmd-io/docmd-template/generate)**
+2. Update `docmd.config.json` with your site title and URL
+3. Push to `main` — your site deploys automatically
+
+## GitHub Actions
+
+[![Marketplace](https://img.shields.io/badge/actions-build_&_deploy_with_docmd-blue?style=flat-square&logo=github)](https://github.com/marketplace/actions/build-and-deploy-documentation-with-docmd)
+
+Add to any workflow:
+
+```yaml
+- uses: docmd-io/deploy@v1.1
+```
+
+Or use the reusable workflow:
+
+```yaml
+jobs:
+  docs:
+    uses: docmd-io/deploy/.github/workflows/deploy.yml@v1.1
+```
 
 ## How Agents Should Use This
 
-1. **Start with `SKILL.md`** — understand what docmd is and what modules are available
-2. **Read the relevant module** — e.g. `config.md` to set up a project, `formatting.md` to write content
-3. **For live interaction** — connect via `docmd mcp` (stdio, JSON-RPC 2.0) instead of reading static files
-4. **For full docs context** — fetch `llms-full.txt` from the deployed site
-
-## Keeping Up to Date
-
-These skills are maintained alongside the [docmd](https://github.com/docmd-io/docmd) repository. When docmd releases a new version, the skill files are updated to reflect new features, config changes, and API additions.
-
-To update your local copy:
-
-```bash
+1. **Start with `SKILL.md`** — Quick reference and overview
+2. **Read specific references** — As needed for your task
+3. **Use MCP for live access** — Connect directly to docmd workspace
+4. **Fetch `llms-full.txt`** — For comprehensive documentation context
 cd .docmd-skills && git pull
 ```
 
