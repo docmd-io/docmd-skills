@@ -8,7 +8,7 @@ when_to_use: |
   - Picking a name, version, or naming convention for a community template
   - Understanding the 4-step resolver chain (frontmatter → config.templates → config.theme.template → default)
 verified_against:
-  docmd: "0.8.7"
+  docmd: "0.8.6"
   tested_on: 2026-06-15
 ---
 
@@ -296,3 +296,4 @@ Your `tsconfig.json` should keep `src/index.ts` as the only entry. The `tsc` bui
 - [api.md#template-resolver-api](./api.md#template-resolver-api) — runtime API for resolving and clearing templates
 - [config.md#theme](./config.md#theme) — `theme.template`, `templates` map, and `frontmatter.template`
 - [summer template on GitHub](https://github.com/docmd-io/docmd/tree/main/packages/templates/summer) — canonical worked example
+- [summer template package](https://www.npmjs.com/package/@docmd/template-summer)
