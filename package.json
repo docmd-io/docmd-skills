@@ -21,7 +21,7 @@
     "release:major": "node bin/docmd-skills.js --release major"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=18"
   },
   "keywords": [
     "docmd",
