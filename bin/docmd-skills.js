@@ -13,7 +13,7 @@ const PKG_ROOT = path.resolve(__dirname, '..');
 const VERSION_FILE = '.docmd-skills-version';
 const SKILL_FILES = ['SKILL.md', 'references'];
 const DEFAULT_TARGET = './docmd-skills';
-const BUMP_TYPES = ['patch', 'minor', 'major'];
+const BUMP_TYPES = ['patch'];
 
 // ---- helpers ----------------------------------------------------------------
 
@@ -71,7 +71,7 @@ Usage:
   docmd-skills uninstall [target]    Remove an install
 
 Maintainer:
-  docmd-skills --release <patch|minor|major>   Bump version, publish to npm, push tag
+  docmd-skills --release <patch>               Bump version, publish to npm, push tag
   docmd-skills --pre-publish                   Validate package before publish
   docmd-skills --self-test                     Smoke-test the CLI itself
 
@@ -226,7 +226,7 @@ async function cmdSelfTest() {
 
 async function cmdRelease(bumpType) {
   if (!BUMP_TYPES.includes(bumpType)) {
-    console.error(`Invalid bump type: ${bumpType}. Use patch | minor | major.`);
+    console.error(`Invalid bump type: ${bumpType}. Use patch.`);
     process.exit(1);
   }
 

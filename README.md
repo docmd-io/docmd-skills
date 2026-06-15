@@ -153,26 +153,13 @@ To make a contribution:
 
 ## Maintainer notes
 
-For maintainers publishing a new release:
+To publish a new release:
 
 ```bash
-# 1. Make your changes, commit them
-git add -A
-git commit -m "release: v1.x.y"
-
-# 2. Bump version (use one of:)
-npm version patch    # 1.2.0 → 1.2.1
-npm version minor    # 1.2.0 → 1.3.0
-npm version major    # 1.2.0 → 2.0.0
-
-# 3. Publish
-npm publish
-
-# 4. Push tags
-git push --follow-tags
+npm run release
 ```
 
-The package's `files` field controls what gets published — see `package.json` for the exact list.
+That's it. The script validates the package, refuses to run on a dirty working tree, bumps the version (patch only), publishes to npm with the `latest` tag, and pushes the new git tag.
 
 ## License
 
