@@ -291,7 +291,7 @@ Your `tsconfig.json` should keep `src/index.ts` as the only entry. The `tsc` bui
 
 ## See Also {#see-also}
 
-- [SKILL.md Section 7](../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
+- [SKILL.md §7](../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
 - [plugin-development.md](./plugin-development.md) — for non-template plugins (use the same `plugin` descriptor, different `capabilities`)
 - [api.md#template-resolver-api](./api.md#template-resolver-api) — runtime API for resolving and clearing templates
 - [config.md#theme](./config.md#theme) — `theme.template`, `templates` map, and `frontmatter.template`

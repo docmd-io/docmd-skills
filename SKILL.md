@@ -262,9 +262,9 @@ A small number of behaviors are worth knowing before relying on them:
 
 ## 9. Recommended workflow for agents {#9-recommended-workflow}
 
-1. Pre-flight: run `npx @docmd/core --version` (Section 0). If it fails, fix the environment first.
-2. Read Sections 1, 2, 3 of this file. Skim Section 7 (compatibility notes) before any non-trivial work.
-3. Read on demand: pick the reference file from Section 8 only for the part of the task at hand.
+1. Pre-flight: run `npx @docmd/core --version` (§0). If it fails, fix the environment first.
+2. Read §§ 1, 2, 3 of this file. Skim §7 (compatibility notes) before any non-trivial work.
+3. Read on demand: pick the reference file from §8 only for the part of the task at hand.
 4. Build small → validate → build larger: scaffold → first page → `build` → `validate` → add more pages.
 5. Use MCP when available: if the host is MCP-capable, `search_docs` and `read_doc` beat shelling out to `cat` + `grep` repeatedly.
 6. Run `validate` before declaring done — a green build does not guarantee working links.
