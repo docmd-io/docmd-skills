@@ -10,7 +10,7 @@ when_to_use: |
   - Connect to a docmd project over MCP (the 4 tools: search_docs, read_doc, validate_docs, get_llms_context)
   - Build a custom docmd plugin or pick between the JS / Rust build engine
   - Migrate from Docusaurus / MkDocs / VitePress to docmd
-  - Do NOT use this skill for: generic Markdown editing, non-docmd static site generators, or building MDX/React component libraries.
+not_use_this_for: Generic Markdown editing, non-docmd static site generators, or building MDX/React component libraries.
 version: 1.1.0
 verified_against:
   docmd: "0.8.6"
