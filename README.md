@@ -4,26 +4,26 @@ AI agent skills for [docmd](https://github.com/docmd-io/docmd) — the zero-conf
 
 This package bundles a structured skill (`SKILL.md` + 11 reference files) that teaches AI coding agents, chat LLMs, and MCP-aware hosts how to scaffold, configure, build, validate, and deploy docmd documentation sites.
 
-## Install
+## Install Skills
 
-### From npm (recommended)
+### With just one command
+
+```bash
+npx docmd-skills install [target-dir]  # add your target skill directory ex - ./cursor/skills
+```
+
+### Global installation (recommended)
 
 ```bash
 # Install the package globally so the CLI is on your PATH
 npm install -g docmd-skills
 
 # Drop the skill files into a target directory
-docmd-skills install                       # default: ./docmd-skills/
+docmd-skills install                         # default: ./docmd-skills/
 docmd-skills install ~/.claude/skills/docmd  # or wherever your host looks
 ```
 
 Once installed, point your agent at the resulting `SKILL.md` (full path is printed by the install command).
-
-### Without installing globally
-
-```bash
-npx docmd-skills install [target-dir]
-```
 
 ### From source (GitHub)
 
