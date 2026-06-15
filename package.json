@@ -1,0 +1,53 @@
+{
+  "name": "docmd-skills",
+  "version": "1.0.0",
+  "description": "AI agent skills for docmd — the zero-config AI-first documentation engine. Teaches agents how to scaffold, configure, build, validate, and deploy docmd sites.",
+  "type": "module",
+  "bin": {
+    "docmd-skills": "bin/docmd-skills.js"
+  },
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "LICENSE",
+    "references/",
+    "bin/"
+  ],
+  "scripts": {
+    "test": "node bin/docmd-skills.js --self-test",
+    "prepublishOnly": "node bin/docmd-skills.js --pre-publish",
+    "release:patch": "node bin/docmd-skills.js --release patch",
+    "release:minor": "node bin/docmd-skills.js --release minor",
+    "release:major": "node bin/docmd-skills.js --release major"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "docmd",
+    "documentation",
+    "docs",
+    "ai",
+    "agent",
+    "skills",
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "cursor",
+    "windsurf",
+    "cline"
+  ],
+  "author": {
+    "name": "Ghazi",
+    "url": "https://mgks.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/docmd-io/docmd-skills.git"
+  },
+  "bugs": {
+    "url": "https://github.com/docmd-io/docmd-skills/issues"
+  },
+  "homepage": "https://github.com/docmd-io/docmd-skills",
+  "license": "MIT"
+}
