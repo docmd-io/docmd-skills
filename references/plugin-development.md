@@ -1,5 +1,14 @@
 ---
 description: Guide to building custom plugins for docmd. Use when creating or modifying docmd plugins.
+when_to_use: |
+  Read this file when you are:
+  - Writing a new docmd plugin from scratch
+  - Picking the right capability for the hook you need
+  - Implementing action/event handlers for the Live Editor (WebSocket RPC)
+  - Publishing a community plugin (`docmd-plugin-*` prefix)
+verified_against:
+  docmd: "0.8.7"
+  tested_on: 2026-06-15
 ---
 
 # Plugin Development
@@ -8,7 +17,7 @@ Full docs:
 * Building Plugins - https://docs.docmd.io/plugins/building-plugins/
 * Plugin Usage - https://docs.docmd.io/plugins/usage/
 
-## Plugin Structure
+## Plugin Structure {#plugin-structure}
 
 Every plugin must export a `plugin` descriptor — plugins without it are rejected at load time.
 
@@ -23,9 +32,9 @@ export default {
 };
 ```
 
-**Naming convention:** Community plugins should prefix with `docmd-plugin-`
+Naming convention: community plugins should prefix with `docmd-plugin-`.
 
-## Capabilities → Hooks
+## Capabilities → Hooks {#capabilities}
 
 | Capability | Hooks | Phase |
 |:--|:--|:--|
@@ -41,11 +50,13 @@ export default {
 | `events` | `events` | Interactive — fire-and-forget handlers (dev only) |
 | `translations` | `translations` | i18n — return locale strings |
 
-## Hook Signatures
+Capabilities are a strict allowlist, not a hint. Declaring `capabilities: ["build"]` and writing an `onPostBuild` hook means the post-build hook is silently never called. Add `post-build` to the array.
 
-### Init & Setup
+## Hook Signatures {#hook-signatures}
 
-**`onConfigResolved(config)`** — Modify config after loading
+### Init & Setup {#init-setup}
+
+`onConfigResolved(config)` — Modify config after loading
 ```javascript
 onConfigResolved: async (config) => {
   config.title = config.title || "My Docs";
@@ -53,67 +64,67 @@ onConfigResolved: async (config) => {
 }
 ```
 
-**`markdownSetup(md, opts)`** — Extend markdown-it instance (synchronous only)
+`markdownSetup(md, opts)` — Extend markdown-it instance (synchronous only)
 ```javascript
 markdownSetup: (md, opts) => {
   md.use(require('markdown-it-emoji'));
 }
 ```
 
-### Build Phase
+`markdownSetup` is synchronous only; returning a Promise has no effect.
 
-**`onBeforeParse(src, frontmatter, filePath?)`** → return modified markdown
+### Build Phase {#build-phase}
+
+`onBeforeParse(src, frontmatter, filePath?)` → return modified markdown
 ```javascript
 onBeforeParse: async (src, frontmatter, filePath) => {
-  // Modify markdown before parsing
   return src.replace(/\{\{version\}\}/g, 'v2.0.0');
 }
 ```
 
-**`onAfterParse(html, frontmatter, filePath?)`** → return modified HTML
+`onAfterParse(html, frontmatter, filePath?)` → return modified HTML
 ```javascript
 onAfterParse: async (html, frontmatter, filePath) => {
-  // Modify HTML after markdown→HTML
   return html.replace(/<pre>/g, '<pre class="highlight">');
 }
 ```
 
-**`onBeforeBuild({ pages, tui })`** — Heavy data fetching/indexing
+`onBeforeBuild({ pages, tui })` — Heavy data fetching/indexing
 ```javascript
 onBeforeBuild: async ({ pages, tui }) => {
   tui.step("Indexing content...");
-  // Use tui.progress() for progress bars
   for (const page of pages) {
     // Process pages
   }
 }
 ```
 
-**`onBeforeRender(page)`** — Mutate `page.frontmatter` or `page.html`
+`onBeforeRender(page)` — Mutate `page.frontmatter` or `page.html`
 ```javascript
 onBeforeRender: async (page) => {
   page.frontmatter.wordCount = page.html.split(/\s+/).length;
 }
 ```
 
-**`onPageReady(page)`** — Access final page before write
+`onBeforeRender` mutates `page` in place. The return value is ignored, unlike `onBeforeParse` / `onAfterParse` which return a new value.
+
+`onPageReady(page)` — Access final page before write
 ```javascript
 onPageReady: async (page) => {
-  // Final checks or logging
   console.log(`Built: ${page.sourcePath}`);
 }
 ```
 
-### Head & Body Injection
+### Head & Body Injection {#head-body-injection}
 
-**`generateMetaTags(config, page, relativePathToRoot)`** → return HTML string
+`generateMetaTags(config, page, relativePathToRoot)` → return HTML string
 ```javascript
 generateMetaTags: async (config, page) => {
   return `<meta name="author" content="My Team">`;
 }
 ```
 
-**`generateScripts(config, opts)`** → return `{ headScriptsHtml, bodyScriptsHtml }`
+`generateScripts(config, opts)` → return `{ headScriptsHtml, bodyScriptsHtml }`
 ```javascript
 generateScripts: async (config, opts) => {
   return {
@@ -123,18 +134,20 @@ generateScripts: async (config, opts) => {
 }
 ```
 
-### Post-Build
+### Post-Build {#post-build}
 
-**`onPostBuild({ config, pages, outputDir, log, options })`** — Post-generation tasks
+`onPostBuild({ config, pages, outputDir, log, options })` — Post-generation tasks
 ```javascript
 onPostBuild: async ({ pages, log }) => {
   log(`Verified ${pages.length} pages.`);
 }
 ```
 
-### Assets
+The `log` function is a scoped logger; output goes to the build log with the plugin's name prefix.
 
-**`getAssets(opts)`** → return array of assets
+### Assets {#assets}
+
+`getAssets(opts)` → return array of assets
 ```javascript
 getAssets: (opts) => [
   { url: "https://cdn.example.com/lib.js", type: "js", location: "head" },
@@ -142,12 +155,13 @@ getAssets: (opts) => [
 ]
 ```
 
-### Dev Server
+`getAssets` runs once per build, not once per page.
 
-**`onDevServerReady(server, wss)`** — Access raw Node.js server
+### Dev Server {#dev-server}
+
+`onDevServerReady(server, wss)` — Access raw Node.js server
 ```javascript
 onDevServerReady: async (server, wss) => {
-  // Custom WebSocket handlers
   wss.on('connection', (ws) => {
     ws.on('message', (msg) => {
       // Handle message
@@ -156,9 +170,11 @@ onDevServerReady: async (server, wss) => {
 }
 ```
 
-### Interactive (Dev Only)
+`onDevServerReady` is only called during `docmd dev`, not during `docmd build`.
 
-**`actions`** — WebSocket RPC handlers
+### Interactive (Dev Only) {#interactive}
+
+`actions` — WebSocket RPC handlers
 ```javascript
 actions: {
   "my-plugin:save": async (payload, ctx) => {
@@ -169,19 +185,20 @@ actions: {
 }
 ```
 
-**`events`** — Fire-and-forget handlers
+`events` — Fire-and-forget handlers
 ```javascript
 events: {
   "my-plugin:analytics": async (payload, ctx) => {
-    // Log analytics event
     console.log("Page view:", payload.path);
   }
 }
 ```
 
-### Translations
+Action names must be namespaced (`my-plugin:save`, not just `save`).
 
-**`translations(localeId)`** → return locale strings
+### Translations {#translations}
+
+`translations(localeId)` → return locale strings
 ```javascript
 translations: (localeId) => {
   const strings = {
@@ -192,7 +209,7 @@ translations: (localeId) => {
 }
 ```
 
-## PageContext
+## PageContext {#pagecontext}
 
 Available in build hooks:
 
@@ -213,7 +230,7 @@ interface PageContext {
 }
 ```
 
-## ActionContext
+## ActionContext {#actioncontext}
 
 Available in `actions` and `events`:
 
@@ -230,7 +247,9 @@ interface ActionContext {
 }
 ```
 
-## Complete Example
+`source: SourceTools` is the editor source tools; it is only meaningful inside the Live Editor / dev-mode context.
+
+## Complete Example {#complete-example}
 
 ```javascript
 import path from 'path';
@@ -256,6 +275,7 @@ export default {
 ```
 
 Register in `docmd.config.json`:
+
 ```jsonc
 {
   "plugins": {
@@ -264,26 +284,33 @@ Register in `docmd.config.json`:
 }
 ```
 
-## Best Practices
+## Best Practices {#best-practices}
 
-1. **Always declare capabilities** — Plugins can only use hooks they declare
-2. **Use async/await** — Hooks may be called concurrently
-3. **Keep plugins stateless** — Engine may re-initialize them
-4. **Prefix action names** — Use `my-plugin:action-name` format
-5. **Use log() for output** — Respects user verbosity settings
-6. **Handle errors gracefully** — Broken plugins shouldn't crash builds
-7. **Use worker tasks** — Offload CPU-intensive work
-8. **Test in isolation** — Use `onBeforeBuild` for setup, `onPostBuild` for verification
+1. Always declare capabilities — plugins can only use hooks they declare
+2. Use async/await — hooks may be called concurrently
+3. Keep plugins stateless — engine may re-initialize them
+4. Prefix action names — use `my-plugin:action-name` format
+5. Use `log()` for output — respects user verbosity settings
+6. Handle errors gracefully — broken plugins shouldn't crash builds
+7. Use worker tasks — offload CPU-intensive work
+8. Test in isolation — use `onBeforeBuild` for setup, `onPostBuild` for verification
 
-## Publishing
+Plugin errors are caught and logged at runtime; the build does not fail. To confirm a hook is being called, throw inside the hook temporarily and watch the build log.
+
+## Publishing {#publishing}
 
 1. Create npm package with `docmd-plugin-` prefix
 2. Export plugin as default
 3. Include README with configuration options
-4. Add `docmd-plugin` keyword in package.json
+4. Add `docmd` keyword in package.json
 5. Test with real docmd project
 
-## See Also
+The `docmd-plugin-` prefix is a convention, not an enforced rule, but it is required for npm discoverability.
 
-- [API Reference](./api.md) — URL utilities and helper functions
-- [Plugins Reference](./plugins.md) — Built-in plugin configuration
+## See Also {#see-also}
+
+- [SKILL.md §7](../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
+- [plugins.md](./plugins.md) — built-in plugins you can model your plugin after
+- [api.md](./api.md) — `loadPlugins`, `createActionDispatcher`, URL utilities
+- [config.md#plugins-config](./config.md#plugins-config) — how plugins are wired into config
+- [engines.md](./engines.md) — engine boundary, serialization gotchas

@@ -1,25 +1,37 @@
 ---
-description: Complete configuration schema for docmd.config.json. Use when setting up or modifying docmd configuration files.
+description: Complete configuration schema for docmd.config.json. Use when setting up or modifying docmd configuration.
+when_to_use: |
+  Read this file when you are:
+  - Setting up `docmd.config.json` for the first time and need the full key set
+  - Hunting for the right key to toggle a specific behavior (theme, layout, navigation, i18n, versions)
+  - Looking up what a config key defaults to
+  - Debugging why SEO, sitemap, or canonical URLs aren't being generated
+  - Migrating from a non-standard config (see also [migration.md](./migration.md))
+verified_against:
+  docmd: "0.8.7"
+  tested_on: 2026-06-15
 ---
 
 # Configuration Reference
+
+The smallest valid config is three keys: `title`, `url`, and `src`. All other keys have defaults.
 
 Full docs:
 * Configuration - https://docs.docmd.io/configuration/
 
 Configuration file: `docmd.config.json` (also supports `.js` and `.ts`)
 
-## Zero-Config
+## Zero-Config {#zero-config}
 
 Without a config file, docmd auto-detects source from `docs/`, `src/docs/`, `documentation/`, or any `.md` folder. Navigation, titles, search, and TOC are set up automatically.
 
-## Core Settings
+## Core Settings {#core-settings}
 
 | Key | Type | Default | Description |
 |:--|:--|:--|:--|
 | `title` | String | `"Documentation"` | Site name — appears in nav, browser tabs, and SEO |
 | `description` | String | — | Fallback meta description for pages without their own |
-| `url` | String | — | Canonical production URL. **Required** for SEO, sitemap, and canonical links |
+| `url` | String | — | Canonical production URL. Required for SEO, sitemap, and canonical links |
 | `src` | String | `"docs"` | Relative path to source markdown directory |
 | `out` | String | `"site"` | Relative path for compiled static output |
 | `base` | String | `"/"` | Root base path for subfolder hosting (e.g. `/docs/`) |
@@ -32,7 +44,9 @@ Without a config file, docmd auto-detects source from `docs/`, `src/docs/`, `doc
 | `pageNavigation` | Boolean | `true` | Show right-hand "On This Page" TOC sidebar |
 | `markdown.breaks` | Boolean | `true` | Convert single newlines to `<br>`. Set `false` for 80-column-wrapped markdown |
 
-## Logo
+Note: `url` is required for sitemap, canonical `<link>` tags, and `og:url`. If `url` is missing, the build succeeds but those values will be empty in the output. Set `url` even for local-only work (`"http://localhost:3000"`).
+
+## Logo {#logo}
 
 ```jsonc
 "logo": {
@@ -44,7 +58,9 @@ Without a config file, docmd auto-detects source from `docs/`, `src/docs/`, `doc
 }
 ```
 
-## Layout
+The keys are named by the background they sit on (not the logo color): `light` is the logo used against a light background.
+
+## Layout {#layout}
 
 ```jsonc
 "layout": {
@@ -66,7 +82,7 @@ Without a config file, docmd auto-detects source from `docs/`, `src/docs/`, `doc
 }
 ```
 
-## Navigation
+## Navigation {#navigation}
 
 ```jsonc
 "navigation": [
@@ -89,7 +105,9 @@ Without a config file, docmd auto-detects source from `docs/`, `src/docs/`, `doc
 ]
 ```
 
-## Theme
+Internal `path` values should start with `/`. External links use `href` plus `external: true`.
+
+## Theme {#theme}
 
 ```jsonc
 "theme": {
@@ -102,7 +120,9 @@ Without a config file, docmd auto-detects source from `docs/`, `src/docs/`, `doc
 }
 ```
 
-## i18n (Internationalization)
+`appearance: "system"` requires client-side JS to read `prefers-color-scheme`. Use `appearance: "light"` for static exports that won't run JS.
+
+## i18n (Internationalization) {#i18n}
 
 ```jsonc
 "i18n": {
@@ -114,7 +134,9 @@ Without a config file, docmd auto-detects source from `docs/`, `src/docs/`, `doc
 }
 ```
 
-## Versions
+i18n requires locale-named source folders (e.g. `docs/de/`) for the per-locale pages to be generated. Setting `i18n` alone does not produce translated output.
+
+## Versions {#versions}
 
 ```jsonc
 "versions": [
@@ -123,7 +145,9 @@ Without a config file, docmd auto-detects source from `docs/`, `src/docs/`, `doc
 ]
 ```
 
-## Plugins
+Like i18n, `versions` requires versioned source folders (e.g. `docs/v0.8/`, `docs/v0.7/`) for the build to fan out. The label `"v0.8 (latest)"` requires `default: true` on exactly one entry.
+
+## Plugins {#plugins-config}
 
 ```jsonc
 "plugins": {
@@ -138,7 +162,7 @@ Without a config file, docmd auto-detects source from `docs/`, `src/docs/`, `doc
 
 See [plugins.md](./plugins.md) for complete plugin configuration.
 
-## Complete Example
+## Complete Example {#complete-example}
 
 ```jsonc
 {
@@ -182,23 +206,26 @@ See [plugins.md](./plugins.md) for complete plugin configuration.
 }
 ```
 
-## Configuration File Formats
+## Configuration File Formats {#file-formats}
 
-### JSON (Recommended)
+### JSON (Recommended) {#json}
+
 ```json
 {
   "title": "My Docs"
 }
 ```
 
-### JavaScript
+### JavaScript {#javascript}
+
 ```javascript
 export default {
   title: "My Docs"
 };
 ```
 
-### TypeScript
+### TypeScript {#typescript}
+
 ```typescript
 import type { DocmdConfig } from "@docmd/core";
 
@@ -207,8 +234,21 @@ export default {
 } satisfies DocmdConfig;
 ```
 
-## Environment Variables
+TypeScript config requires `"type": "module"` in `package.json` and a build step (tsc / tsx).
+
+## Environment Variables {#environment-variables}
 
 - `DOCMD_CONFIG` — Override config file path
 - `DOCMD_PORT` — Override default dev server port
 - `DOCMD_OFFLINE` — Force offline mode for builds
+
+Env vars are read at process start, not per-build.
+
+## See Also {#see-also}
+
+- [SKILL.md §5](../SKILL.md#5-quick-config-cheat-sheet) — minimal config + the 6 most common add-ons
+- [SKILL.md §7](../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
+- [cli.md](./cli.md) — CLI flags and exit codes
+- [plugins.md](./plugins.md) — per-plugin config
+- [formatting.md](./formatting.md) — page-level frontmatter pairs with site config
+- [migration.md](./migration.md) — upgrading from older docmd config schemas

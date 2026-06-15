@@ -1,30 +1,39 @@
 ---
-description: Reference for all built-in docmd plugins and their configuration options. Use when configuring plugins or understanding plugin capabilities.
+description: Reference for built-in docmd plugins and their configuration. Use when configuring plugins or understanding plugin capabilities.
+when_to_use: |
+  Read this file when you are:
+  - Enabling a built-in plugin (search, git, seo, llms, mermaid, math, pwa, threads, analytics, sitemap, openapi)
+  - Deciding between keyword search and semantic search
+  - Configuring per-plugin options
+  - Choosing between the shorthand `plugins.<name>` form and the full package name form
+verified_against:
+  docmd: "0.8.7"
+  tested_on: 2026-06-15
 ---
 
 # Plugins Reference
+
+Plugins are declared in `docmd.config.json` under `"plugins": { ... }`.
+
+Official shorthands (e.g. `"search"`) resolve to `@docmd/plugin-<name>`. Third-party plugins use their full npm package name.
 
 Full docs:
 * Using Plugins - https://docs.docmd.io/plugins/usage/
 * Building Plugins - https://docs.docmd.io/plugins/building-plugins/
 
-Plugins are declared in `docmd.config.json` under `"plugins": { ... }`.
-
-**Official shorthands** (e.g. `"search"`) resolve to `@docmd/plugin-<name>`.
-
-**Third-party plugins** use their full npm package name.
-
-## Plugin Resolution
+## Plugin Resolution {#plugin-resolution}
 
 - Official shorthands (`search`, `math`, `git`) → `@docmd/plugin-<name>`
 - Third-party → use full npm package name (e.g. `my-docmd-plugin` or `@myorg/docmd-extras`)
-- Auto-install: adding an official plugin to config auto-installs it on next build
-- **Isolation**: broken plugins cannot crash the build — errors are caught and logged
-- **Capability enforcement**: plugins can only use hooks they declare in `capabilities`
+- Auto-install: adding an official plugin to config can auto-install it on next build
+- Isolation: broken plugins cannot crash the build — errors are caught and logged
+- Capability enforcement: plugins can only use hooks they declare in `capabilities`
 
-## Built-In Plugins
+Note: shorthand `seo` is built-in, but shorthand `math` requires `docmd add math` first. The asymmetry is intentional.
 
-### Search
+## Built-In Plugins {#built-in-plugins}
+
+### Search {#search}
 
 Full docs: Search Plugin - https://docs.docmd.io/plugins/search/
 
@@ -44,14 +53,14 @@ Full docs: Search Plugin - https://docs.docmd.io/plugins/search/
 }
 ```
 
-**Features:**
+Features:
 - Keyboard: `/` or `Ctrl+K`
 - Keyword: [MiniSearch](https://github.com/lucaong/minisearch) (client-side, offline)
 - Semantic: Local embeddings — 100% private, no server calls
 - Exclude pages: `noindex: true` in frontmatter
 - CJK support: Auto-tokenized per-character
 
-**Semantic Search (docmd-search):**
+Semantic Search (docmd-search):
 
 Install for vector-based semantic search:
 ```bash
@@ -63,13 +72,9 @@ Or run standalone on any folder:
 npx docmd-search ./docs  # Instant semantic search
 ```
 
-Semantic search provides:
-- Context-aware results (understands meaning, not just keywords)
-- Similarity scoring with confidence badges
-- Multi-language embedding models
-- GPU acceleration (optional)
+`semantic: true` requires `docmd-search` to be installed; otherwise the plugin falls back to keyword search silently.
 
-### Git
+### Git {#git}
 
 ```jsonc
 "git": {
@@ -83,11 +88,11 @@ Semantic search provides:
 }
 ```
 
-**Features:**
+Features:
 - Auto-disables if project is not a git repository
 - No configuration required for basic last-updated timestamps
 
-### SEO
+### SEO {#seo}
 
 ```jsonc
 "seo": {
@@ -98,12 +103,12 @@ Semantic search provides:
 }
 ```
 
-**Per-page overrides** in frontmatter:
+Per-page overrides in frontmatter:
 - `seo.image`
 - `seo.canonicalUrl`
 - `seo.aiBots`
 
-### Analytics
+### Analytics {#analytics}
 
 ```jsonc
 "analytics": {
@@ -122,10 +127,7 @@ Or for Google Analytics v4 specifically:
 }
 ```
 
-**Features:**
-- If search plugin is enabled, search keywords are auto-captured by analytics
-
-### Sitemap
+### Sitemap {#sitemap}
 
 ```jsonc
 "sitemap": {
@@ -133,11 +135,13 @@ Or for Google Analytics v4 specifically:
 }
 ```
 
-**Requirements:**
+Requirements:
 - Also requires `url` in root config
 - Skipped if missing
 
-### OpenAPI
+`plugins.sitemap.url` is a separate key from the root `url`; they are usually the same value. The root `url` is used for canonical links; `plugins.sitemap.url` is used as the `<loc>` prefix.
+
+### OpenAPI {#openapi}
 
 ```jsonc
 "openapi": {
@@ -147,7 +151,7 @@ Or for Google Analytics v4 specifically:
 }
 ```
 
-### Mermaid
+### Mermaid {#mermaid}
 
 ```jsonc
 "mermaid": {
@@ -155,7 +159,9 @@ Or for Google Analytics v4 specifically:
 }
 ```
 
-### Math (KaTeX)
+`mermaid` fenced code blocks only render if the Mermaid plugin is enabled. There is no inline fallback.
+
+### Math (KaTeX) {#math}
 
 ```jsonc
 "math": {
@@ -163,22 +169,20 @@ Or for Google Analytics v4 specifically:
 }
 ```
 
-**Features:**
 - Optional plugin — install with `docmd add math`
 - Renders `$inline$` and `$$block$$` LaTeX expressions
 
-### LLMs
+### LLMs {#llms}
 
 ```jsonc
 "llms": {}  // No config needed
 ```
 
-**Features:**
 - `llms.txt` = short summary with page links
 - `llms-full.txt` = full content of all pages, optimised for LLM context windows
 - Exclude pages with `llms: false` in frontmatter
 
-### PWA
+### PWA {#pwa}
 
 ```jsonc
 "pwa": {
@@ -188,11 +192,10 @@ Or for Google Analytics v4 specifically:
 }
 ```
 
-**Features:**
 - Optional plugin — install with `docmd add pwa`
 - Enables offline access
 
-### Threads
+### Threads {#threads}
 
 ```jsonc
 "threads": {
@@ -201,25 +204,28 @@ Or for Google Analytics v4 specifically:
 }
 ```
 
-**Features:**
 - Optional plugin — install with `docmd add threads`
 
-## Plugin Management
+## Plugin Management {#plugin-management}
 
-### Install Plugin
+### Install Plugin {#install-plugin}
+
 ```bash
 docmd add search
 docmd add math
 docmd add threads
 ```
 
-### Remove Plugin
+### Remove Plugin {#remove-plugin}
+
 ```bash
 docmd remove threads
 ```
 
-### Manual Configuration
+### Manual Configuration {#manual-configuration}
+
 Add to `docmd.config.json`:
+
 ```jsonc
 {
   "plugins": {
@@ -231,9 +237,10 @@ Add to `docmd.config.json`:
 }
 ```
 
-## Third-Party Plugins
+## Third-Party Plugins {#third-party-plugins}
 
 Use full npm package name:
+
 ```jsonc
 {
   "plugins": {
@@ -245,6 +252,12 @@ Use full npm package name:
 }
 ```
 
-## See Also
+Third-party plugins are not auto-installed; you must `npm install` them yourself.
 
-- [Plugin Development](./plugin-development.md) — Building custom plugins
+## See Also {#see-also}
+
+- [SKILL.md §4](../SKILL.md#4-mcp-server) — the 4 MCP tools use plugins under the hood
+- [SKILL.md §7](../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
+- [plugin-development.md](./plugin-development.md) — build your own plugin
+- [api.md](./api.md) — `loadPlugins`, capabilities, action handlers
+- [config.md#plugins-config](./config.md#plugins-config) — site-level config pair
