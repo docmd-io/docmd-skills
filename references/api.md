@@ -7,7 +7,7 @@ when_to_use: |
   - Using the `window.docmd` dev-mode API for plugin actions/events
   - Reaching for the URL utilities (`outputPathToSlug`, `resolveHref`, etc.) inside a custom plugin
   - Resolving which template file renders a given slot on a given page (`resolveTemplate` from `@docmd/ui`)
-  - Speaking to the MCP server (full coverage in [SKILL.md §4](../SKILL.md#4-mcp-server))
+  - Speaking to the MCP server (full coverage in [SKILL.md Section 4](../SKILL.md#4-mcp-server))
 verified_against:
   docmd: "0.8.7"
   tested_on: 2026-06-15
@@ -200,7 +200,7 @@ Third-party libraries that initialize on `DOMContentLoaded` (analytics widgets, 
 
 ## MCP Server {#mcp-server}
 
-Full coverage lives in [SKILL.md §4](../SKILL.md#4-mcp-server). The summary table:
+Full coverage lives in [SKILL.md Section 4](../SKILL.md#4-mcp-server). The summary table:
 
 | Tool | Input | Output |
 |:--|:--|:--|
@@ -403,8 +403,8 @@ All exports from `@docmd/api` are also available from `@docmd/core`. New project
 
 ## See Also {#see-also}
 
-- [SKILL.md §4](../SKILL.md#4-mcp-server) — full MCP section with handshake sequence
-- [SKILL.md §7](../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
+- [SKILL.md Section 4](../SKILL.md#4-mcp-server) — full MCP section with handshake sequence
+- [SKILL.md Section 7](../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
 - [plugin-development.md](./plugin-development.md) — hook signatures referenced from `loadPlugins`
 - [template-development.md](./template-development.md) — for the author-side `TemplateHook` / `TemplateAssetHook` types
 - [engines.md](./engines.md) — JS vs Rust engine details
