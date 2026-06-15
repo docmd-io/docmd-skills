@@ -1,136 +1,280 @@
 ---
 name: docmd-skills
-description: AI agent instructions for docmd — the zero-config AI-first documentation engine. Use when working with docmd projects, configuring documentation sites, building plugins, or understanding docmd's capabilities.
+description: Instructions for working with docmd — a zero-config documentation generator with MCP integration. Use when scaffolding, configuring, building, validating, or deploying a docmd site.
 when_to_use: |
-  Use this skill when:
-  - Setting up or configuring docmd documentation projects
-  - Working with docmd CLI commands (init, dev, build, deploy, live, validate)
-  - Creating or modifying docmd.config.json configuration files
-  - Building custom plugins for docmd
-  - Understanding docmd's markdown extensions and formatting
-  - Using docmd's Node.js or browser APIs
-  - Troubleshooting docmd builds or deployments
-  - User mentions "docmd" or asks about documentation generation
+  Use this skill when the user wants to:
+  - Scaffold, configure, build, validate, or deploy a docmd documentation site
+  - Use the `npx @docmd/core` CLI (init, dev, build, validate, live, deploy, mcp)
+  - Edit `docmd.config.json` (themes, navigation, layout, plugins, i18n, versions)
+  - Write docmd-flavored markdown (containers, tabs, cards, frontmatter, Mermaid)
+  - Connect to a docmd project over MCP (search_docs, read_doc, validate_docs, get_llms_context)
+  - Build a custom docmd plugin or pick between the JS / Rust build engine
+  - Migrate from Docusaurus / MkDocs / VitePress to docmd
+do_not_use_for: Generic Markdown editing, non-docmd static site generators, or building MDX/React component libraries.
+version: 1.2.0
+verified_against:
+  docmd: "0.8.6"
+  node: ">=20"
+  tested_on: 2026-06-15
 repository: https://github.com/docmd-io/docmd
 docs: https://docs.docmd.io
-llms-context: https://docs.docmd.io/llms-full.txt
+llms_context: https://docs.docmd.io/llms-full.txt
 ---
 
-# docmd — Zero-Config AI-First Documentation Engine
+# docmd — Agent Skill
 
-docmd is a modern documentation generator designed for AI-first workflows. It features zero-configuration setup, instant builds, live browser-based editing, and native AI agent integration via MCP.
+## 0. Pre-flight check {#0-pre-flight-check}
 
-## Quick Reference
+Before working with docmd, confirm the toolchain is available:
 
-**Installation**
 ```bash
-npm install -D @docmd/core
-npx @docmd/core init
+npx --yes @docmd/core --version   # should print a version (e.g. 0.8.6)
+node --version                    # must be >= 20
 ```
 
-**Core Commands**
-- `docmd init` — Scaffold new project
-- `docmd dev` — Development server with hot reload (default: port 3000)
-- `docmd build` — Production build to `site/` directory
-- `docmd live` — Browser-based Live Editor
-- `docmd validate` — Link validation for CI/CD
-- `docmd mcp` — MCP server for AI agent integration
+If `npx` reports a network error, fix that first — every command in this skill assumes a working `npx` and a reachable npm registry.
 
-**Key Features**
-- Zero-config: auto-detects `docs/`, `src/docs/`, or any `.md` folder
-- Built-in search (keyword + optional semantic)
-- Plugin system with lifecycle hooks
-- Multi-version and i18n support
-- Live Editor with in-browser builds
-- AI-ready with `llms.txt` generation
+This skill was verified against docmd 0.8.6. For 0.7.x or 0.9.x, see [references/migration.md](./references/migration.md) for breaking changes.
 
-## Reference Documentation
+## 1. When docmd fits the task {#1-when-docmd-fits}
 
-For detailed information, see the following reference files in the `references/` directory:
+docmd is a strong fit for static documentation sites that will be consumed by AI agents (llms.txt and MCP are first-class features). It is less suitable when the project needs MDX/React components inside content, versioned i18n with more than a handful of locales, or a large third-party plugin ecosystem.
 
-- **[CLI Reference](./references/cli.md)** — All commands, flags, and options
-- **[Configuration](./references/config.md)** — Complete config schema with defaults
-- **[Workspaces](./references/workspaces.md)** — Multi-project workspace setup
-- **[Plugins](./references/plugins.md)** — Built-in plugins and configuration
-- **[Plugin Development](./references/plugin-development.md)** — Hooks, lifecycle, custom plugins
-- **[Formatting](./references/formatting.md)** — Containers, frontmatter, markdown extensions
-- **[API Reference](./references/api.md)** — Node.js API, browser API, utilities
-- **[Engines](./references/engines.md)** — Build engine architecture (JS/Rust)
-- **[Migration](./references/migration.md)** — Migrate from Docusaurus, MkDocs, VitePress
-- **[Validation](./references/validation.md)** — Link checking and CI/CD integration
-- **[Deployment](./references/deployment.md)** — GitHub template, Actions, Docker, platforms
+## 2. Core commands {#2-core-commands}
 
-## AI Agent Integration
+| Command | Purpose | When to use |
+| --- | --- | --- |
+| `npx @docmd/core init` | Scaffold `docs/`, `docmd.config.json`, `package.json`, starter `index.md` | First run only |
+| `npx @docmd/core dev` | Hot-reload dev server on port 3000 (auto-increments) | Local content writing |
+| `npx @docmd/core build` | Production build to `site/` | Pre-deploy, pre-commit |
+| `npx @docmd/core validate` | Lint internal links, exit non-zero on broken refs | CI gate, pre-commit |
+| `npx @docmd/core mcp` | Start stdio MCP server (JSON-RPC 2.0) | MCP-capable host |
+| `npx @docmd/core add <name>` / `remove <name>` | Manage official plugins | Adding search / math / threads / etc. |
 
-### llms.txt Context Files
-- Full context: `{site_url}/llms-full.txt`
-- Short context: `{site_url}/llms.txt`
-- Auto-generated by the `llms` plugin at build time
+Full flag/option reference: [references/cli.md](./references/cli.md).
 
-### MCP Server
+Three tool surfaces are available:
+
+- **Shell CLI** (above) — simplest, easiest to debug
+- **MCP server** (`docmd mcp`) — for MCP-aware hosts that want structured JSON responses
+- **Node API** (`buildSite`, `buildLive`, `detectWorkspace`) — for embedding docmd in other Node tools. See [references/api.md](./references/api.md)
+
+## 3. First-time setup {#3-first-time-setup}
+
 ```bash
-docmd mcp  # Starts JSON-RPC 2.0 server over stdio
+mkdir my-docs && cd my-docs
+npx --yes @docmd/core init .        # add --no-install to skip the npm install step
+npm install                          # if --no-install was used
+$EDITOR docs/index.md                # edit content
+npx @docmd/core build                # produces ./site
+npx @docmd/core validate             # confirms no broken links
 ```
 
-Exposes tools for:
-- Building and validating documentation
-- Reading/writing source files
-- Managing configuration
-- Live preview integration
+After `init`, the project contains:
 
-### Recommended Workflow
-1. Start with this skill to understand docmd's capabilities
-2. Read specific reference files as needed for your task
-3. Use `llms-full.txt` for comprehensive documentation context
-4. Connect via MCP for real-time project interaction
-
-## Common Tasks
-
-### Create New Project
-```bash
-npx @docmd/core init
-# Creates: docs/index.md, docmd.config.json, package.json scripts
+```
+my-docs/
+├── docmd.config.json    # site config — title, url, layout, theme, plugins
+├── package.json         # scripts: dev / build / preview
+├── SKILL.md             # local copy of this skill
+└── docs/
+    └── index.md         # landing page
 ```
 
-### Configure Site
-```json
+After `build`, `site/` is a static site ready to deploy:
+
+```
+site/
+├── index.html                   # /
+├── <page>/index.html            # one per markdown file, kebab-case paths
+├── 404.html
+├── assets/                      # CSS, JS, favicon — hashed
+├── search-index.json            # client-side search index
+├── llms.txt                     # short AI-agent context
+├── llms-full.txt                # full AI-agent context
+├── llms.json                    # structured equivalent of llms.txt
+├── sitemap.xml
+├── robots.txt
+└── .nojekyll                    # disables Jekyll on GitHub Pages
+```
+
+## 4. MCP server {#4-mcp-server}
+
+`docmd mcp` starts a JSON-RPC 2.0 server over stdio. Verified tool surface (probed 2026-06-15, docmd 0.8.6):
+
+| Tool | Input | Output | Use |
+| --- | --- | --- | --- |
+| `search_docs` | `{ query: string }` | File/line matches with surrounding context | "What does this project say about X?" |
+| `read_doc` | `{ route: string }` (e.g. `"docs/foo.md"`) | Raw markdown content, or error text | Grab a single file |
+| `validate_docs` | `{}` | Pass/fail text | CI-style link check |
+| `get_llms_context` | `{}` | Full `llms-full.txt` body | Priming another LLM |
+
+Protocol details:
+
+- Transport: stdio, one JSON-RPC message per line
+- Protocol version advertised: `2025-03-26` (server accepts `2024-11-05` too)
+- Errors are returned as `content[].text` strings, not JSON-RPC error objects — parse the text to detect failures
+- The server prints an ASCII banner to stdout on startup (filter non-JSON lines on the client)
+
+Handshake sequence (every MCP client must do this):
+
+```text
+→ {"jsonrpc":"2.0","id":1,"method":"initialize","params":{...}}
+← {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-03-26",...}}
+→ {"jsonrpc":"2.0","method":"notifications/initialized","params":{}}
+→ {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
+← {"jsonrpc":"2.0","id":2,"result":{"tools":[...]}}
+→ {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"search_docs","arguments":{"query":"foo"}}}
+← {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"..."}]}}
+```
+
+Client config examples:
+
+```jsonc
+// Claude Desktop / claude_desktop_config.json
 {
-  "title": "My Documentation",
-  "url": "https://docs.example.com",
-  "src": "docs",
-  "out": "site"
+  "mcpServers": {
+    "docmd": {
+      "command": "npx",
+      "args": ["--yes", "@docmd/core", "mcp"],
+      "cwd": "/absolute/path/to/project"
+    }
+  }
 }
 ```
 
-### Add Plugin
-```bash
-docmd add search  # Installs @docmd/plugin-search
+```jsonc
+// Cursor / Windsurf
+{
+  "command": "npx --yes @docmd/core mcp",
+  "transport": "stdio"
+}
 ```
 
-### Build for Production
-```bash
-docmd build
-# Outputs to site/ directory
+Use MCP when the host is MCP-aware and structured responses are useful. Use the CLI for one-off `build` / `validate` runs — cheaper to spawn, no protocol overhead.
+
+## 5. Quick config cheat-sheet {#5-quick-config-cheat-sheet}
+
+Minimal `docmd.config.json`:
+
+```jsonc
+{
+  "title": "My Docs",            // site name (browser tab, nav, SEO)
+  "url":  "https://docs.example.com", // required for sitemap, canonical, og:* tags
+  "src":  "docs",                // source folder
+  "out":  "site"                 // output folder
+}
 ```
 
-### Validate Links
-```bash
-docmd validate --json  # For CI/CD pipelines
+Common additions:
+
+```jsonc
+{
+  "layout":   { "spa": true, "sidebar": { "collapsible": true } },
+  "theme":    { "appearance": "system" },   // "light" | "dark" | "system"
+  "navigation": [                            // override auto-generated nav
+    { "title": "Home",  "path": "/" },
+    { "title": "Guide", "path": "/guide" }
+  ],
+  "plugins": {
+    "search": {},                            // keyword search (MiniSearch, client-side)
+    "seo":    {},                            // meta tags + sitemap trigger
+    "llms":   {},                            // llms.txt + llms-full.txt
+    "git":    { "repo": "https://github.com/me/proj" }
+  }
+}
 ```
 
-## Architecture
+Full schema: [references/config.md](./references/config.md).
 
-docmd consists of several packages:
-- `@docmd/core` — Main build engine (CLI + Node API)
-- `@docmd/api` — URL utilities and shared helpers
-- `@docmd/parser` — Markdown parsing and rendering
-- `@docmd/ui` — Frontend UI components
-- `@docmd/plugin-*` — Official plugins (search, git, seo, etc.)
+Recommended frontmatter on each `.md` file:
 
-All packages are published to npm under the `@docmd` scope.
+```yaml
+---
+title: "Page Title"          # HTML <title>, nav label
+description: "SEO summary"   # meta description
+order: 1                     # sidebar ordering (lower = higher)
+noindex: false               # true to exclude from search + sitemap
+llms: true                   # false to exclude from llms.txt
+---
+```
 
-## Support
+Full frontmatter reference: [references/formatting.md#frontmatter](./references/formatting.md#frontmatter).
 
-- Documentation: https://docs.docmd.io
-- GitHub: https://github.com/docmd-io/docmd
-- Issues: https://github.com/docmd-io/docmd/issues
+## 6. Markdown extensions {#6-markdown-extensions}
+
+docmd-flavored markdown adds containers and tabs on top of CommonMark. Most frequently used:
+
+````markdown
+::: callout tip "Heads up"
+Inline note rendered as a styled callout. Types: info, tip, warning, danger, success.
+:::
+
+::: tabs
+== tab "pnpm"
+```bash
+pnpm add @docmd/core
+```
+== tab "npm"
+```bash
+npm install @docmd/core
+```
+:::
+
+::: card "Quick Start" icon:zap
+Card body — supports full markdown inside.
+:::
+
+::: button "Get Started" /getting-started
+::: button "GitHub" external:https://github.com/me/proj icon:github
+:::
+
+```mermaid
+graph LR; A[Write] --> B[Build] --> C[Ship]
+```
+````
+
+Full container catalog: [references/formatting.md](./references/formatting.md).
+
+## 7. Compatibility notes {#7-compatibility-notes}
+
+A small number of behaviors are worth knowing before relying on them:
+
+1. Every built HTML page contains a `<!-- [docmd-source] -->` attribution comment at the top. The comment is not currently gated by a config flag.
+2. `engine: "rust"` falls back to the JS engine silently if the platform-specific binary is unavailable. The build log contains an `[engine]` line that indicates which engine actually ran.
+
+## 8. When to read each reference file {#8-when-to-read-each-reference}
+
+| You need to… | Read |
+| --- | --- |
+| Look up a CLI flag or command | [references/cli.md](./references/cli.md) |
+| Add or tune a config key | [references/config.md](./references/config.md) |
+| Write a doc page (frontmatter, containers, tabs) | [references/formatting.md](./references/formatting.md) |
+| Enable/configure a plugin (search, git, seo, llms, etc.) | [references/plugins.md](./references/plugins.md) |
+| Build a custom plugin | [references/plugin-development.md](./references/plugin-development.md) |
+| Build a custom template (layout, 404, TOC, partials) | [references/template-development.md](./references/template-development.md) |
+| Validate links in CI | [references/validation.md](./references/validation.md) |
+| Multi-project monorepo | [references/workspaces.md](./references/workspaces.md) |
+| Pick JS vs Rust build engine | [references/engines.md](./references/engines.md) |
+| Programmatic Node/Browser integration | [references/api.md](./references/api.md) |
+| Migrate from Docusaurus / MkDocs / VitePress | [references/migration.md](./references/migration.md) |
+| Generate deploy configs (Docker, nginx, Vercel, etc.) | [references/deployment.md](./references/deployment.md) |
+
+## 9. Recommended workflow for agents {#9-recommended-workflow}
+
+1. Pre-flight: run `npx @docmd/core --version` (§0). If it fails, fix the environment first.
+2. Read §1, §2, §3 of this file. Skim §7 (compatibility notes) before any non-trivial work.
+3. Read on demand: pick the reference file from §8 only for the part of the task at hand.
+4. Build small → validate → build larger: scaffold → first page → `build` → `validate` → add more pages.
+5. Use MCP when available: if the host is MCP-capable, `search_docs` and `read_doc` beat shelling out to `cat` + `grep` repeatedly.
+6. Run `validate` before declaring done — a green build does not guarantee working links.
+
+## 10. Support and upstream links {#10-support-and-upstream}
+
+- Project repo: <https://github.com/docmd-io/docmd>
+- Full docs: <https://docs.docmd.io>
+- LLM-friendly full context: <https://docs.docmd.io/llms-full.txt>
+- Issues: <https://github.com/docmd-io/docmd/issues>
+- This skill repo: <https://github.com/docmd-io/docmd-skills>
+
+If something in this skill contradicts the official docs, the official docs take precedence. File an issue or PR against this repo to fix any drift.
