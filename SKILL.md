@@ -14,9 +14,9 @@ do_not_use_for: Generic Markdown editing, non-docmd static site generators, or b
 version: 1.2.0
 verified_against:
   docmd: "0.8.7"
-  node: ">=20"
+  node: ">=18"
   tested_on: 2026-06-15
-repository: https://github.com/docmd-io/docmd
+repository: https://github.com/docmd-io/docmd-skills
 docs: https://docs.docmd.io
 llms_context: https://docs.docmd.io/llms-full.txt
 ---
@@ -29,7 +29,7 @@ Before working with docmd, confirm the toolchain is available:
 
 ```bash
 npx --yes @docmd/core --version   # should print a version (e.g. 0.8.6)
-node --version                    # must be >= 20
+node --version                    # must be >= 18
 ```
 
 If `npx` reports a network error, fix that first — every command in this skill assumes a working `npx` and a reachable npm registry.
