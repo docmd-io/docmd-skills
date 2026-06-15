@@ -1,14 +1,26 @@
 ---
 description: Reference for docmd markdown extensions, containers, and frontmatter. Use when writing docmd content or understanding formatting rules.
+when_to_use: |
+  Read this file when you are:
+  - Authoring a doc page and need to know which container syntax exists
+  - Setting frontmatter on a `.md` file (title, description, order, noindex, llms, layout, seo.*, components.*)
+  - Wondering whether `:::tip` vs `::: callout tip` is the right form
+  - Embedding video, code, or Mermaid diagrams inside content
+  - Migrating VitePress/Docusaurus-style containers into docmd
+verified_against:
+  docmd: "0.8.6"
+  tested_on: 2026-06-15
 ---
 
 # Formatting Reference
+
+> **Agent tip:** docmd is a *superset* of CommonMark. If you write standard Markdown, it just works. The containers and tabs in this file are the additions — reach for them only when plain Markdown can't express what you need.
 
 Full docs:
 * Containers - https://docs.docmd.io/content/containers/
 * Frontmatter - https://docs.docmd.io/content/frontmatter/
 
-## Frontmatter
+## Frontmatter {#frontmatter}
 
 YAML frontmatter at the top of `.md` files:
 
@@ -25,10 +37,15 @@ layout: "full"               # "full" = max width, hides right-hand TOC
 toc: true                    # Set false to disable Table of Contents
 noStyle: false               # Strip all UI (sidebar, header, footer)
 titleAppend: true            # Set false to stop appending site title to <title>
+order: 1                     # Sidebar ordering (lower = higher). Numbers, not strings.
 ---
 ```
 
-### Component Opt-In (when `noStyle: true`)
+> **Common pitfall:** `order` is **a number, not a string.** `order: "1"` will silently sort alphabetically. Use `order: 1`. Same goes for any other numeric frontmatter field.
+
+### Component Opt-In (when `noStyle: true`) {#component-opt-in}
+
+When you set `noStyle: true` (e.g. for a landing page), turn components back on individually:
 
 ```yaml
 components:
@@ -42,7 +59,9 @@ components:
   footer: true     # Site footer
 ```
 
-### Per-Page Overrides
+> **Common pitfall:** if you set `noStyle: true` and forget to re-enable `css: true` and `theme: true`, the page renders as unstyled HTML. Almost always you want at least `css` + `theme` + `highlight` re-enabled or atleast define a customCss file for style.
+
+### Per-Page Overrides {#per-page-overrides}
 
 ```yaml
 # Plugin overrides
@@ -57,18 +76,18 @@ seo:
   aiBots: false
 ```
 
-## Container Syntax
+## Container Syntax {#container-syntax}
 
-### Self-Closing Rules
+### Self-Closing Rules {#self-closing-rules}
 
 | Container | Self-closing | Needs `:::` close |
 |:--|:--|:--|
 | callout, steps, card, grids/grid, tabs, changelog, collapsible, hero | No | Yes |
 | **button, tag, embed** | **Yes** | **Never** |
 
-**Important:** A `:::` after button, tag, or embed closes the *parent* container, not the element.
+> **Common pitfall:** A `:::` after a `button`, `tag`, or `embed` closes the **parent** container, not the element. This is the #1 cause of "my card won't close" bugs. If you need a button/tag/embed, write it as `::: button "..."` on a single line and move on — no closing fence.
 
-## Callouts
+## Callouts {#callouts}
 
 ```markdown
 ::: callout warning "Breaking Change" icon:alert-triangle
@@ -86,7 +105,9 @@ Content with full markdown support.
 - `:::note`
 - `:::caution`
 
-## Steps
+> **Common pitfall:** bare `:::tip` and `::: callout tip "..."` are both valid but render differently. The bare form is the **VitePress/Docusaurus import alias** — it uses the heading of the next paragraph as the title. The `callout` form takes an explicit title. Pick one per project and stay consistent.
+
+## Steps {#steps}
 
 ```markdown
 ::: steps
@@ -104,7 +125,7 @@ Content with full markdown support.
 - Blank lines between items required
 - Bold first line of each item = step title
 
-## Cards
+## Cards {#cards}
 
 ```markdown
 ::: card "Title" icon:zap
@@ -112,7 +133,7 @@ Card body — supports full markdown.
 :::
 ```
 
-## Grids
+## Grids {#grids}
 
 ```markdown
 ::: grids
@@ -133,7 +154,7 @@ Card body — supports full markdown.
 - Columns auto-balance widths
 - Stack vertically on mobile
 
-## Tabs
+## Tabs {#tabs}
 
 ````markdown
 ::: tabs
@@ -157,7 +178,9 @@ npm install @docmd/core
 - No nesting tabs inside tabs
 - Active tab state persists across SPA navigation
 
-## Changelogs
+> **Common pitfall:** tabs inside other tabs are silently ignored — they render as the `==` text. If you genuinely need nested panels, use a grid of cards instead.
+
+## Changelogs {#changelogs}
 
 ```markdown
 ::: changelog
@@ -177,7 +200,7 @@ Initial release.
 - Each `==` entry gets a timeline badge
 - Supports full markdown inside (callouts, code blocks, etc.)
 
-## Collapsible
+## Collapsible {#collapsible}
 
 ```markdown
 ::: collapsible "FAQ Question"
@@ -191,7 +214,7 @@ Visible content — `open` flag starts it expanded.
 
 **Alias:** `:::details` (VitePress-compatible)
 
-## Hero
+## Hero {#hero}
 
 ```markdown
 ::: hero layout:split glow:true
@@ -208,7 +231,7 @@ Tagline text.
 - `layout:slider` — Use `== slide` divider
 - `glow:true` — Radial gradient background
 
-## Button (Self-Closing)
+## Button (Self-Closing) {#button}
 
 ```markdown
 ::: button "Label" /internal/path
@@ -221,7 +244,7 @@ Tagline text.
 - `color:VALUE` — CSS color/hex
 - `icon:NAME` — Lucide icon name
 
-## Tag (Self-Closing)
+## Tag (Self-Closing) {#tag}
 
 ```markdown
 ::: tag "v0.8.6" color:blue
@@ -240,7 +263,7 @@ Tagline text.
 Added in ::: tag "v0.8" color:blue and works perfectly.
 ```
 
-## Embed (Self-Closing)
+## Embed (Self-Closing) {#embed}
 
 ```markdown
 ::: embed "https://www.youtube.com/watch?v=0CSyIBHQy9g"
@@ -258,7 +281,7 @@ Added in ::: tag "v0.8" color:blue and works perfectly.
 - Falls back to hyperlink button for unsupported URLs
 - URL must be quoted
 
-## Nesting Code Blocks
+## Nesting Code Blocks {#nesting-code-blocks}
 
 Use four-backtick fences when nesting code blocks inside containers:
 
@@ -272,9 +295,11 @@ Use four-backtick fences when nesting code blocks inside containers:
 :::
 `````
 
-## Common Patterns
+> **Common pitfall:** the outermost fence is **four** backticks, the next one is **three**, the inner one is **two**. Off-by-one backticks is the second-most-common container bug (after the `:::` close issue above).
 
-### Landing Page
+## Common Patterns {#common-patterns}
+
+### Landing Page {#landing-page}
 
 ```markdown
 ---
@@ -303,9 +328,9 @@ Beautiful documentation for your project.
 :::
 ```
 
-### API Documentation
+### API Documentation {#api-documentation}
 
-```markdown
+````markdown
 ---
 layout: full
 ---
@@ -332,7 +357,7 @@ The v2.0 API has changed significantly.
 :::
 ```
 
-### Changelog
+### Changelog {#changelog}
 
 ```markdown
 ---
@@ -353,4 +378,11 @@ title: Changelog
 - Added semantic search
 
 :::
-```
+````
+
+## See Also {#see-also}
+
+- [SKILL.md §6](../SKILL.md#6-markdown-extensions-youll-use-a-lot) — top 5 copy-paste snippets
+- [SKILL.md §7](../SKILL.md#7-known-papercuts-read-this-before-filing-bugs) — papercuts across the whole tool
+- [config.md](./config.md) — site-level config that pairs with frontmatter
+- [plugins.md](./plugins.md) — math (KaTeX) and Mermaid are plugins, not built-ins
