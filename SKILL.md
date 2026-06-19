@@ -11,11 +11,12 @@ when_to_use: |
   - Build a custom docmd plugin or pick between the JS / Rust build engine
   - Migrate from Docusaurus / MkDocs / VitePress to docmd
 do_not_use_for: Generic Markdown editing, non-docmd static site generators, or building MDX/React component libraries.
-version: 1.2.0
+version: 1.0.1
+audience: both
 verified_against:
   docmd: "0.8.7"
   node: ">=18"
-  tested_on: 2026-06-15
+  tested_on: 2026-06-19
 repository: https://github.com/docmd-io/docmd-skills
 docs: https://docs.docmd.io
 llms_context: https://docs.docmd.io/llms-full.txt
@@ -23,18 +24,51 @@ llms_context: https://docs.docmd.io/llms-full.txt
 
 # docmd — Agent Skill
 
+## Loading rules — user vs development references
+
+This skill ships with **user-facing** references (loaded by default) and **development** references (load only when the user is actively working on docmd itself, not on a docmd site).
+
+**Default load (user):** `cli`, `config`, `formatting`, `plugins`, `migration`, `deployment`, `validation`, `workspaces`, `api` (subset only), `SKILL.md` itself.
+
+**Load only when developing docmd:** `engines`, `plugin-development`, `template-development`, plus the `Engine Loader API` / `URL Utilities` / `createActionDispatcher` sections of `api`.
+
+Load the dev references when **any one** of these signals is true:
+
+1. The user's current working directory **is** a clone of the docmd monorepo. The repo's local clone directory is named just `docmd/` (the GitHub path is `docmd-io/docmd/`). Telltale markers: `pnpm-lock.yaml`, `packages/core/src/`, `packages/ui/src/`, `packages/api/src/`, `packages/plugins/<name>/`, `packages/engines/`. To clone it: `git clone https://github.com/docmd-io/docmd.git docmd && cd docmd`.
+2. The user explicitly says they want to "write a plugin", "write a template", "extend the engine", "modify the core", "add a hook", or similar development intent.
+3. The user is editing files inside `packages/core/src/`, `packages/api/src/`, `packages/ui/src/`, `packages/plugins/*/src/`, or `packages/engines/*/` of the docmd monorepo.
+
+If none of those signals fire, stay on the user-facing references. Do not load dev resources speculatively — they're noisy and irrelevant to using docmd as a tool.
+
+## Reference index
+
+| File | Audience | Use when… |
+|---|---|---|
+| [references/cli.md](./references/cli.md) | user | CLI flags, subcommand choice, CI exit codes |
+| [references/config.md](./references/config.md) | user | Setting up or modifying `docmd.config.json` |
+| [references/formatting.md](./references/formatting.md) | user | Writing docmd-flavored markdown (containers, frontmatter, Mermaid) |
+| [references/plugins.md](./references/plugins.md) | user | Enabling built-in plugins, configuring plugin options |
+| [references/migration.md](./references/migration.md) | user | Moving from Docusaurus / MkDocs / VitePress / Starlight |
+| [references/deployment.md](./references/deployment.md) | user | GitHub Actions, Docker, Vercel, Netlify, hosting |
+| [references/validation.md](./references/validation.md) | user | Link checking, CI gating |
+| [references/workspaces.md](./references/workspaces.md) | user | Multi-project / monorepo docs setup |
+| [references/api.md](./references/api.md) | both | `buildSite` / `buildLive` user parts **and** plugin author parts — read selectively |
+| [references/engines.md](./references/engines.md) | dev | JS vs Rust engines, performance tuning, custom engines |
+| [references/plugin-development.md](./references/plugin-development.md) | dev | Writing a custom docmd plugin |
+| [references/template-development.md](./references/template-development.md) | dev | Writing a custom docmd template package |
+
 ## 0. Pre-flight check {#0-pre-flight-check}
 
 Before working with docmd, confirm the toolchain is available:
 
 ```bash
-npx --yes @docmd/core --version   # should print a version (e.g. 0.8.6)
+npx --yes @docmd/core --version   # should print a version (e.g. 0.8.7)
 node --version                    # must be >= 18
 ```
 
 If `npx` reports a network error, fix that first — every command in this skill assumes a working `npx` and a reachable npm registry.
 
-This skill was verified against docmd 0.8.6. For 0.7.x or 0.9.x, see [references/migration.md](./references/migration.md) for breaking changes.
+This skill was verified against docmd 0.8.7. For 0.7.x or 0.9.x, see [references/migration.md](./references/migration.md) for breaking changes.
 
 ## 1. When docmd fits the task {#1-when-docmd-fits}
 
@@ -100,7 +134,7 @@ site/
 
 ## 4. MCP server {#4-mcp-server}
 
-`docmd mcp` starts a JSON-RPC 2.0 server over stdio. Verified tool surface (probed 2026-06-15, docmd 0.8.6):
+`docmd mcp` starts a JSON-RPC 2.0 server over stdio. Verified tool surface (probed 2026-06-18, docmd 0.8.7):
 
 | Tool | Input | Output | Use |
 | --- | --- | --- | --- |

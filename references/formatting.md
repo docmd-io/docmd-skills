@@ -7,9 +7,10 @@ when_to_use: |
   - Choosing between `:::tip` and `::: callout tip` syntax
   - Embedding video, code, or Mermaid diagrams inside content
   - Migrating VitePress/Docusaurus-style containers into docmd
+audience: user
 verified_against:
   docmd: "0.8.7"
-  tested_on: 2026-06-15
+  tested_on: 2026-06-19
 ---
 
 # Formatting Reference
@@ -18,7 +19,7 @@ docmd is a superset of CommonMark. Standard Markdown renders unchanged; the cont
 
 Full docs:
 * Containers - https://docs.docmd.io/content/containers/
-* Frontmatter - https://docs.docmd.io/content/frontmatter/
+* Frontmatter - https://docs.docmd.io/content/frontmatter
 
 ## Frontmatter {#frontmatter}
 

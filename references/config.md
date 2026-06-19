@@ -7,9 +7,10 @@ when_to_use: |
   - Looking up what a config key defaults to
   - Debugging why SEO, sitemap, or canonical URLs aren't being generated
   - Migrating from a non-standard config (see also [migration.md](./migration.md))
+audience: user
 verified_against:
   docmd: "0.8.7"
-  tested_on: 2026-06-15
+  tested_on: 2026-06-19
 ---
 
 # Configuration Reference
@@ -17,7 +18,7 @@ verified_against:
 The smallest valid config is three keys: `title`, `url`, and `src`. All other keys have defaults.
 
 Full docs:
-* Configuration - https://docs.docmd.io/configuration/
+* Configuration - https://docs.docmd.io/configuration/overview
 
 Configuration file: `docmd.config.json` (also supports `.js` and `.ts`)
 

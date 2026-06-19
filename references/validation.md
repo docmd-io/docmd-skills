@@ -6,16 +6,17 @@ when_to_use: |
   - Parsing `--json` output programmatically
   - Deciding what to skip via `.docmdignore`
   - Diagnosing false-positive broken-link reports
+audience: user
 verified_against:
   docmd: "0.8.7"
-  tested_on: 2026-06-15
+  tested_on: 2026-06-19
 ---
 
 # Validation Reference
 
 `validate` is not the same as `build` — a green build does not mean links work. Build runs the engine; validate runs the linter. Run both in CI.
 
-Full docs: CLI Commands - https://docs.docmd.io/api/cli-commands/
+Full docs: CLI Commands - https://docs.docmd.io/reference/cli-commands/
 
 ## Commands {#commands}
 

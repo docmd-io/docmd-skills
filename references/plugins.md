@@ -6,9 +6,10 @@ when_to_use: |
   - Deciding between keyword search and semantic search
   - Configuring per-plugin options
   - Choosing between the shorthand `plugins.<name>` form and the full package name form
+audience: user
 verified_against:
   docmd: "0.8.7"
-  tested_on: 2026-06-15
+  tested_on: 2026-06-19
 ---
 
 # Plugins Reference
@@ -18,8 +19,8 @@ Plugins are declared in `docmd.config.json` under `"plugins": { ... }`.
 Official shorthands (e.g. `"search"`) resolve to `@docmd/plugin-<name>`. Third-party plugins use their full npm package name.
 
 Full docs:
-* Using Plugins - https://docs.docmd.io/plugins/usage/
-* Building Plugins - https://docs.docmd.io/plugins/building-plugins/
+* Using Plugins - https://docs.docmd.io/plugins/usage
+* Building Plugins - https://docs.docmd.io/development/building-plugins/
 
 ## Plugin Resolution {#plugin-resolution}
 
@@ -35,7 +36,7 @@ Note: shorthand `seo` is built-in, but shorthand `math` requires `docmd add math
 
 ### Search {#search}
 
-Full docs: Search Plugin - https://docs.docmd.io/plugins/search/
+Full docs: Search Plugin - https://docs.docmd.io/plugins/search
 
 ```jsonc
 "search": {

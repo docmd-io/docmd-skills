@@ -7,17 +7,18 @@ when_to_use: |
   - Shipping template CSS/JS as part of a plugin
   - Picking a name, version, or naming convention for a community template
   - Understanding the 4-step resolver chain (frontmatter → config.templates → config.theme.template → default)
+audience: dev
 verified_against:
   docmd: "0.8.7"
-  tested_on: 2026-06-15
+  tested_on: 2026-06-19
 ---
 
 # Template Development
 
 Full docs:
-* Theming → Templates - https://docs.docmd.io/theming/templates/
-* Building Plugins - https://docs.docmd.io/plugins/building-plugins/
-* Configuration - https://docs.docmd.io/configuration/
+* Theming → Templates - https://docs.docmd.io/theming/templates
+* Building Plugins - https://docs.docmd.io/development/building-plugins/
+* Configuration - https://docs.docmd.io/configuration/overview
 
 ## What a template is {#what-a-template-is}
 
@@ -98,7 +99,7 @@ const templates = [
 
 Path resolution uses **`import.meta.url`** (URL-relative) so the same code works in dev (`src/index.ts`) and after `tsc` (`dist/index.js`). The `tsc` build must copy `templates/` and `assets/` into `dist/` — see the [summer template's `scripts/copy-assets.mjs`](https://github.com/docmd-io/docmd/tree/main/packages/templates/summer/scripts) for the standard pattern.
 
-## The 14 Supported Slots {#the-14-supported-slots}
+## The 12 Supported Slots {#the-12-supported-slots}
 
 You may override any of these. Slots you do not provide fall back to the `@docmd/ui` default automatically.
 
@@ -107,16 +108,17 @@ You may override any of these. Slots you do not provide fall back to the `@docmd
 | `layout` | The full page shell — `<html>`, `<head>`, `<body>`, every surrounding widget |
 | `404` | Standalone not-found page |
 | `toc` | Right-rail table of contents |
-| `navigation` | Sidebar / primary nav |
+| `navigation` | Sidebar / primary nav (the sidebar tree is rendered through this slot) |
 | `footer` | Page-level footer (links, copyright, "Built with docmd") |
 | `menubar` | Top horizontal bar (logo + search + actions) |
-| `header` | Per-page header (title, breadcrumbs, edit link) |
 | `options-menu` | Theme switch / language switcher / search trigger |
 | `project-switcher` | Monorepo project dropdown |
 | `version-dropdown` | Doc version switcher |
 | `language-switcher` | i18n locale switcher |
 | `banner` | Site-wide announcement (dismissable, opt-in) |
 | `cookie-consent` | Cookie consent dialog (opt-in) |
+
+> **Type source:** the full slot list is exported from `@docmd/api` as the `TemplateSlot` union — if a name is not in this table it is not a real slot.
 
 > The `layout` slot is the biggest hammer. Overriding it means you re-render everything below it. Most templates only override a handful of partials and let `layout` stay default.
 
@@ -287,7 +289,7 @@ Your `tsconfig.json` should keep `src/index.ts` as the only entry. The `tsc` bui
 1. `npm login` (one-time)
 2. `npm publish --access public` from the package root
 3. The version on npm must match the version of `@docmd/core` you developed against. A template built against `0.8.7` will work with `0.8.7+` core; a template built against `0.9.0` may need adjustments for older cores.
-4. Tag the release on GitHub so the [docs template gallery](https://docs.docmd.io/theming/templates/) can pick it up.
+4. Tag the release on GitHub so the [docs template gallery](https://docs.docmd.io/theming/templates) can pick it up.
 
 ## See Also {#see-also}
 

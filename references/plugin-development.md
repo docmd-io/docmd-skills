@@ -6,16 +6,17 @@ when_to_use: |
   - Picking the right capability for the hook you need
   - Implementing action/event handlers for the Live Editor (WebSocket RPC)
   - Publishing a community plugin (`docmd-plugin-*` prefix)
+audience: dev
 verified_against:
   docmd: "0.8.7"
-  tested_on: 2026-06-15
+  tested_on: 2026-06-19
 ---
 
 # Plugin Development
 
 Full docs:
-* Building Plugins - https://docs.docmd.io/plugins/building-plugins/
-* Plugin Usage - https://docs.docmd.io/plugins/usage/
+* Building Plugins - https://docs.docmd.io/development/building-plugins/
+* Plugin Usage - https://docs.docmd.io/plugins/usage
 
 ## Plugin Structure {#plugin-structure}
 

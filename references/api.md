@@ -8,9 +8,10 @@ when_to_use: |
   - Reaching for the URL utilities (`outputPathToSlug`, `resolveHref`, etc.) inside a custom plugin
   - Resolving which template file renders a given slot on a given page (`resolveTemplate` from `@docmd/ui`)
   - Speaking to the MCP server (full coverage in [SKILL.md §4](../SKILL.md#4-mcp-server))
+audience: both
 verified_against:
   docmd: "0.8.7"
-  tested_on: 2026-06-15
+  tested_on: 2026-06-19
 ---
 
 # API Reference
@@ -18,9 +19,9 @@ verified_against:
 Prefer `@docmd/api` over `@docmd/core` for type-only or utility imports. They are re-exported from `core`, but `api` has the focused surface that tree-shakes cleanly.
 
 Full docs:
-* Node API - https://docs.docmd.io/api/node-api/
-* Browser API - https://docs.docmd.io/api/browser-api/
-* Client Events - https://docs.docmd.io/api/client-side-events/
+* Node API - https://docs.docmd.io/reference/build-api/
+* Browser API - https://docs.docmd.io/reference/browser-api/
+* Client Events - https://docs.docmd.io/reference/client-side-events/
 
 ## Node.js Build API (`@docmd/core`) {#node-build-api}
 
@@ -211,7 +212,7 @@ Full coverage lives in [SKILL.md §4](../SKILL.md#4-mcp-server). The summary tab
 
 Errors come back as `content[].text` strings, not JSON-RPC error objects. Parse the text to detect failure: the string starts with `Error: ...` for known error cases.
 
-Full docs: MCP Server - https://docs.docmd.io/api/mcp-server/
+Full docs: MCP Server - https://docs.docmd.io/reference/mcp-server/
 
 ### Client Configuration {#mcp-client-config}
 

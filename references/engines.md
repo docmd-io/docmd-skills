@@ -6,9 +6,10 @@ when_to_use: |
   - Diagnosing slow build performance
   - Writing or registering a custom build engine
   - Understanding silent fallback from Rust to JS
+audience: dev
 verified_against:
   docmd: "0.8.7"
-  tested_on: 2026-06-15
+  tested_on: 2026-06-19
 ---
 
 # Engines

@@ -6,9 +6,10 @@ when_to_use: |
   - Upgrading an old docmd config (V1 → V2 schema)
   - Recovering from a half-finished migration
   - Auditing which manual steps the migrator does not handle automatically
+audience: user
 verified_against:
   docmd: "0.8.7"
-  tested_on: 2026-06-15
+  tested_on: 2026-06-19
 ---
 
 # Migration

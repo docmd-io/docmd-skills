@@ -6,15 +6,16 @@ when_to_use: |
   - Deciding which subcommand to run (init vs dev vs build vs live vs deploy vs validate vs mcp)
   - Wiring docmd into a CI pipeline (exit codes, `--json` output, `--config` overrides)
   - Understanding which package manager `docmd add` will use
+audience: user
 verified_against:
   docmd: "0.8.7"
-  tested_on: 2026-06-15
+  tested_on: 2026-06-19
 ---
 
 # CLI Reference
 
 Full docs:
-* CLI Commands - https://docs.docmd.io/api/cli-commands/
+* CLI Commands - https://docs.docmd.io/reference/cli-commands/
 
 ## Installation {#installation}
 

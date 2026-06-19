@@ -7,9 +7,10 @@ when_to_use: |
   - Picking a hosting target (Pages vs Vercel vs Netlify vs S3 vs Docker)
   - Wiring up preview deploys on pull requests
   - Configuring sub-path hosting (`base` config) for non-root deployments
+audience: user
 verified_against:
   docmd: "0.8.7"
-  tested_on: 2026-06-15
+  tested_on: 2026-06-19
 ---
 
 # Deployment Reference
