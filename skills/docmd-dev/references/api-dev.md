@@ -1,98 +1,37 @@
 ---
-description: Complete API reference for docmd including Node.js API, browser API, MCP server, and utilities. Use when integrating docmd programmatically or building advanced plugins.
+description: Plugin-author internals — @docmd/api package, URL utilities, action/event dispatcher, source tools, engine loader, and TypeScript types. Use when writing docmd plugins, templates, or modifying the engine itself.
 when_to_use: |
   Read this file when you are:
-  - Calling docmd programmatically from Node (build, dev, workspace orchestration)
-  - Embedding the docmd Live Editor / compile engine in a browser
-  - Using the `window.docmd` dev-mode API for plugin actions/events
-  - Reaching for the URL utilities (`outputPathToSlug`, `resolveHref`, etc.) inside a custom plugin
-  - Resolving which template file renders a given slot on a given page (`resolveTemplate` from `@docmd/ui`)
-  - Speaking to the MCP server (full coverage in [SKILL.md §4](../SKILL.md#4-mcp-server))
-audience: both
+  - Writing a docmd plugin (using `@docmd/api` URL helpers, action dispatcher, source tools)
+  - Reaching for the engine loader to register a custom build engine
+  - Resolving which template file renders a given slot (`resolveTemplate` from `@docmd/ui`)
+  - Pulling TypeScript types for plugin authoring
+
+  For the user-facing programmatic build API (`buildSite`, `buildLive`, workspace orchestration), see [api-user.md](../../docmd-skills/references/api-user.md).
+audience: dev
 verified_against:
   docmd: "0.8.7"
   tested_on: 2026-06-19
 ---
 
-# API Reference
+# API Reference (Plugin Author)
 
-Prefer `@docmd/api` over `@docmd/core` for type-only or utility imports. They are re-exported from `core`, but `api` has the focused surface that tree-shakes cleanly.
+Use this when writing a **docmd plugin, custom template, or modifying the engine**. The dev-facing APIs live in `@docmd/api` (and are re-exported from `@docmd/core`).
 
-Full docs:
-* Node API - https://docs.docmd.io/reference/build-api/
-* Browser API - https://docs.docmd.io/reference/browser-api/
-* Client Events - https://docs.docmd.io/reference/client-side-events/
-
-## Node.js Build API (`@docmd/core`) {#node-build-api}
-
-### buildSite {#buildsite}
-
-Build static site — same as `docmd build`
-
-```javascript
-import { buildSite } from "@docmd/core";
-
-await buildSite("./docmd.config.json", {
-  isDev: false,      // true = dev mode (no minification, enables HMR assets)
-  offline: false,    // true = rewrite links to .html for file:// browsing
-  zeroConfig: false  // true = skip config file, auto-detect everything
-});
-```
-
-`isDev: true` does not start a dev server — it sets build-time flags only. For a live dev server, use `buildLive` or shell out to `docmd dev`.
-
-### buildLive {#buildlive}
-
-Generate browser-based Live Editor bundle
-
-```javascript
-import { buildLive } from "@docmd/core";
-
-await buildLive({ 
-  serve: false,  // Start dev server
-  port: 3000     // Server port
-});
-```
-
-`buildLive` defaults to `serve: false`, which only generates the bundle. Set `serve: true` to actually open it.
-
-### Workspace Functions {#workspace-functions}
-
-```javascript
-import { 
-  detectWorkspace, 
-  buildWorkspace, 
-  devWorkspace, 
-  isWorkspace 
-} from "@docmd/core";
-
-// Detect if config is a workspace config
-const config = await detectWorkspace("./docmd.config.json");
-// Returns null if not a workspace, or normalised WorkspaceRootConfig
-
-if (isWorkspace(config)) {
-  // Build all projects in workspace
-  await buildWorkspace(config, { quiet: false });
-  
-  // Or start dev server for all projects
-  await devWorkspace(config, { quiet: false });
-}
-```
-
-`detectWorkspace` returns `null` for non-workspace configs; always null-check before passing to `isWorkspace`.
+For the user-facing build API (`buildSite`, `buildLive`, workspace orchestration), see [api-user.md](../../docmd-skills/references/api-user.md) instead.
 
 ## URL Utilities (`@docmd/api`) {#url-utilities}
 
 Centralized URL helpers — plugins should use these instead of custom implementations.
 
 ```javascript
-import { 
-  outputPathToSlug, 
-  outputPathToPathname, 
+import {
+  outputPathToSlug,
+  outputPathToPathname,
   outputPathToCanonical,
-  sanitizeUrl, 
-  buildAbsoluteUrl, 
-  resolveHref 
+  sanitizeUrl,
+  buildAbsoluteUrl,
+  resolveHref
 } from '@docmd/api';
 
 // Convert output path to clean slug
@@ -131,47 +70,19 @@ page.urls.pathname   // '/guide/'
 
 `page.urls.canonical` is `undefined` if root config `url` is missing.
 
-## Browser API {#browser-api}
-
-### Isomorphic Compile Engine {#isomorphic-compile-engine}
-
-The same engine that builds static sites can run in the browser:
-
-```html
-<link rel="stylesheet" href="https://unpkg.com/@docmd/ui/assets/css/docmd-main.css">
-<script src="https://unpkg.com/@docmd/live/dist/docmd-live.js"></script>
-```
-
-```javascript
-// Compile raw markdown → full HTML document string
-const html = await docmd.compile(markdownString, {
-  title: "Preview",
-  theme: { appearance: "light" }
-});
-
-iframe.srcdoc = html;  // Render in iframe for style isolation
-```
-
-Browser mode has no filesystem access. `navigation` and any source content must be passed explicitly. Node-only plugins (sitemap, LLMs generation) are auto-disabled.
-
-Limitations:
-- No filesystem access in browser
-- Provide `navigation` array explicitly
-- Node-only plugins (sitemap, LLMs) disabled
-
-### Dev-Mode Plugin API (`window.docmd`) {#dev-mode-plugin-api}
+## Dev-Mode Plugin API (`window.docmd`) {#dev-mode-plugin-api}
 
 Only available during `docmd dev` — not in production builds.
 
 ```javascript
 // Call a server-side plugin action handler (returns Promise)
-const result = await docmd.call("threads:get-threads", { 
-  file: "docs/guide.md" 
+const result = await docmd.call("threads:get-threads", {
+  file: "docs/guide.md"
 });
 
 // Fire-and-forget event to server
-docmd.send("analytics:page-view", { 
-  path: location.pathname 
+docmd.send("analytics:page-view", {
+  path: location.pathname
 });
 
 // Subscribe to server-pushed events (returns unsubscribe function)
@@ -185,63 +96,6 @@ docmd.afterReload("scroll-restore", (ctx) => window.scrollTo(0, ctx.scrollY));
 ```
 
 `window.docmd` does not exist in production builds. Guard with `if (window.docmd) { ... }`.
-
-## SPA Client-Side Events {#spa-client-side-events}
-
-docmd uses an SPA router — `DOMContentLoaded` won't re-fire on navigation.
-
-```javascript
-document.addEventListener("docmd:page-mounted", (event) => {
-  const { url } = event.detail;  // Absolute URL of newly mounted page
-  // Re-init third-party libraries here
-});
-```
-
-Third-party libraries that initialize on `DOMContentLoaded` (analytics widgets, syntax highlighters, comment widgets) only run on the first page load. Listen for `docmd:page-mounted` to re-init on subsequent navigations.
-
-## MCP Server {#mcp-server}
-
-Full coverage lives in [SKILL.md §4](../SKILL.md#4-mcp-server). The summary table:
-
-| Tool | Input | Output |
-|:--|:--|:--|
-| `search_docs` | `{ query: string }` | File/line matches with context |
-| `read_doc` | `{ route: string }` | Raw markdown content |
-| `validate_docs` | `{}` | Pass/fail text |
-| `get_llms_context` | `{}` | Full `llms-full.txt` body |
-
-Errors come back as `content[].text` strings, not JSON-RPC error objects. Parse the text to detect failure: the string starts with `Error: ...` for known error cases.
-
-Full docs: MCP Server - https://docs.docmd.io/reference/mcp-server/
-
-### Client Configuration {#mcp-client-config}
-
-Claude Desktop (`claude_desktop_config.json`):
-```json
-{
-  "mcpServers": {
-    "docmd": {
-      "command": "npx",
-      "args": ["--yes", "@docmd/core", "mcp"],
-      "cwd": "/path/to/project"
-    }
-  }
-}
-```
-
-Cursor / Windsurf:
-```json
-{
-  "command": "npx --yes @docmd/core mcp",
-  "transport": "stdio"
-}
-```
-
-### Security {#mcp-security}
-
-- Local only — no network ports, no external connections
-- File access sandboxed to project root
-- No telemetry
 
 ## Template Resolver API (`@docmd/ui`) {#template-resolver-api}
 
@@ -327,7 +181,7 @@ interface TemplateResolutionContext {
 
 type TemplateSlot =
   | 'layout' | '404' | 'toc' | 'navigation' | 'footer'
-  | 'menubar' | 'header' | 'options-menu' | 'project-switcher'
+  | 'menubar' | 'options-menu' | 'project-switcher'
   | 'version-dropdown' | 'language-switcher' | 'banner' | 'cookie-consent';
 ```
 
@@ -336,22 +190,22 @@ For the **author-side** types used when declaring slot overrides and asset bundl
 ## Plugin System Utilities (`@docmd/api`) {#plugin-system-utilities}
 
 ```javascript
-import { 
-  loadPlugins, 
-  createActionDispatcher, 
-  createSourceTools, 
-  loadEngine, 
-  registerEngine 
+import {
+  loadPlugins,
+  createActionDispatcher,
+  createSourceTools,
+  loadEngine,
+  registerEngine
 } from "@docmd/api";
 
 // Load and validate all plugins from config
-const hooks = await loadPlugins(config, { 
-  resolvePaths: [__dirname] 
+const hooks = await loadPlugins(config, {
+  resolvePaths: [__dirname]
 });
 
 // Route WebSocket RPC messages to plugin handlers
 const dispatcher = createActionDispatcher(
-  { actions, events }, 
+  { actions, events },
   { projectRoot, config, broadcast }
 );
 const { result, reload } = await dispatcher.handleCall("my-action", payload);
@@ -404,9 +258,6 @@ All exports from `@docmd/api` are also available from `@docmd/core`. New project
 
 ## See Also {#see-also}
 
-- [SKILL.md §4](../SKILL.md#4-mcp-server) — full MCP section with handshake sequence
-- [SKILL.md §7](../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
 - [plugin-development.md](./plugin-development.md) — hook signatures referenced from `loadPlugins`
 - [template-development.md](./template-development.md) — for the author-side `TemplateHook` / `TemplateAssetHook` types
-- [engines.md](./engines.md) — JS vs Rust engine details
-- [cli.md](./cli.md) — CLI equivalents of these API functions
+- [engines.md](./engines.md) — engine loader and architecture internals

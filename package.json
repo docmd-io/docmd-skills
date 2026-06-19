@@ -1,16 +1,15 @@
 {
   "name": "docmd-skills",
-  "version": "1.0.0",
-  "description": "AI agent skills for docmd — the zero-config AI-first documentation engine. Teaches agents how to scaffold, configure, build, validate, and deploy docmd sites.",
+  "version": "1.2.0",
+  "description": "Three modular AI agent skills for docmd — the zero-config AI-first documentation engine. Installs the user skill (site building, config, deploy) by default, plus opt-in dev (framework internals) and writer (prose quality) skills.",
   "type": "module",
   "bin": {
     "docmd-skills": "bin/docmd-skills.js"
   },
   "files": [
-    "SKILL.md",
+    "skills/",
     "README.md",
     "LICENSE",
-    "references/",
     "bin/"
   ],
   "scripts": {
@@ -37,7 +36,9 @@
     "windsurf",
     "cline",
     "antigravity",
-    "copilot"
+    "copilot",
+    "diataxis",
+    "technical-writing"
   ],
   "author": {
     "name": "Ghazi",

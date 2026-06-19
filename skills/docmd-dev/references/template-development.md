@@ -272,7 +272,7 @@ Your `tsconfig.json` should keep `src/index.ts` as the only entry. The `tsc` bui
 - **No stacking.** Installing a second template replaces the first. To get behaviour from both, ship one template that combines their slots.
 - **`noStyle: true` pages ignore templates.** This is intentional — those pages are for raw markdown export.
 - **Frontmatter `template` is the strongest override.** A user who wants to opt a single page out of the site-wide template just sets `template: null` (or omits the field on the active template).
-- **The resolver is cached per build.** If you mutate `config.theme.template` at runtime inside a plugin, call `clearTemplateResolverCache()` from `@docmd/ui` to invalidate. See [api.md](./api.md#template-resolver-api) for the runtime API.
+- **The resolver is cached per build.** If you mutate `config.theme.template` at runtime inside a plugin, call `clearTemplateResolverCache()` from `@docmd/ui` to invalidate. See [api-dev.md](./api-dev.md#template-resolver-api) for the runtime API.
 
 ## Best Practices {#best-practices}
 
@@ -293,9 +293,9 @@ Your `tsconfig.json` should keep `src/index.ts` as the only entry. The `tsc` bui
 
 ## See Also {#see-also}
 
-- [SKILL.md §7](../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
+- [SKILL.md §7](../../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
 - [plugin-development.md](./plugin-development.md) — for non-template plugins (use the same `plugin` descriptor, different `capabilities`)
-- [api.md#template-resolver-api](./api.md#template-resolver-api) — runtime API for resolving and clearing templates
-- [config.md#theme](./config.md#theme) — `theme.template`, `templates` map, and `frontmatter.template`
+- [api-dev.md#template-resolver-api](./api-dev.md#template-resolver-api) — runtime API for resolving and clearing templates
+- [config.md#theme](../../docmd-skills/references/config.md#theme) — `theme.template`, `templates` map, and `frontmatter.template`
 - [summer template on GitHub](https://github.com/docmd-io/docmd/tree/main/packages/templates/summer) — canonical worked example
 - [summer template package](https://www.npmjs.com/package/@docmd/template-summer)

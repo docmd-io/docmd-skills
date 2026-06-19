@@ -1,19 +1,18 @@
 #!/usr/bin/env node
-// docmd-skills CLI — install / update / info / uninstall / release helpers
+// docmd-skills CLI — installs the modular docmd agent skills (user / dev / writer).
 // Cross-platform Node script, no external dependencies.
 
 import { promises as fs } from 'node:fs';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execSync } from 'node:child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.resolve(__dirname, '..');
-const VERSION_FILE = '.docmd-skills-version';
-const SKILL_FILES = ['SKILL.md', 'references'];
+const SKILLS_ROOT = path.join(PKG_ROOT, 'skills');
+const SKILL_NAMES = ['docmd-skills', 'docmd-dev', 'docmd-writer'];
 const DEFAULT_TARGET = './docmd-skills';
-const BUMP_TYPES = ['patch'];
+const VERSION_FILE = '.docmd-skills-version';
 
 // ---- helpers ----------------------------------------------------------------
 
@@ -23,8 +22,7 @@ async function readPkg() {
 }
 
 async function getVersion() {
-  const pkg = await readPkg();
-  return pkg.version;
+  return (await readPkg()).version;
 }
 
 async function copyDir(src, dest) {
@@ -41,282 +39,236 @@ async function copyDir(src, dest) {
   }
 }
 
-async function copySkillFiles(dest) {
-  await fs.mkdir(dest, { recursive: true });
-  for (const f of SKILL_FILES) {
-    const src = path.join(PKG_ROOT, f);
-    const dst = path.join(dest, f);
-    const stat = await fs.stat(src);
-    if (stat.isDirectory()) {
-      await copyDir(src, dst);
-    } else {
-      await fs.copyFile(src, dst);
-    }
-  }
-}
-
 function resolveTarget(argTarget) {
-  return path.resolve(
-    argTarget || process.env.DOCMD_SKILLS_DIR || DEFAULT_TARGET
-  );
+  return path.resolve(argTarget || DEFAULT_TARGET);
 }
 
 function printHelp(version) {
   console.log(`docmd-skills v${version}
 
-Usage:
-  docmd-skills install [target]      Install skill files (default: ./docmd-skills)
-  docmd-skills update [target]       Update an existing install
-  docmd-skills info [target]         Show version info for an install
-  docmd-skills uninstall [target]    Remove an install
+Installs modular AI agent skills for docmd (the zero-config documentation engine).
 
-Maintainer:
-  docmd-skills --release <patch>               Bump version, publish to npm, push tag
-  docmd-skills --pre-publish                   Validate package before publish
-  docmd-skills --self-test                     Smoke-test the CLI itself
+Three skills ship in this package:
+  docmd-skills/    Use when building, configuring, or operating a docmd site (default)
+  docmd-dev/       Use when contributing to the docmd framework in its monorepo
+  docmd-writer/    Use when writing or reviewing the prose inside a docmd site
+
+Usage:
+  docmd-skills [dir]                  Install all three skills to <dir>
+  docmd-skills dev [dir]              Add docmd-dev to an existing install
+  docmd-skills writer [dir]           Add docmd-writer to an existing install
+  docmd-skills uninstall [dir]        Remove all installed skills from <dir>
 
 Options:
   -h, --help                         Show this help
   -v, --version                      Show package version
+
+Default <dir>: ${DEFAULT_TARGET}
+
+Examples:
+  npx docmd-skills                            # install all three skills
+  npx docmd-skills ~/.claude/skills/docmd     # install into Claude skills folder
+  npx docmd-skills dev ~/.claude/skills/docmd # add dev skill alongside
+  npx docmd-skills writer ~/.claude/skills/docmd
+  npx docmd-skills uninstall ~/.claude/skills/docmd
 `);
 }
 
-function getLatestNpmVersion() {
-  try {
-    const out = execSync('npm view docmd-skills version', {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    return out.trim();
-  } catch {
-    return null; // not published yet, or network error
+// ---- install / add ----------------------------------------------------------
+
+async function installSkill(skillName, target) {
+  const src = path.join(SKILLS_ROOT, skillName);
+  const dest = path.join(target, skillName);
+  if (!existsSync(src)) {
+    throw new Error(`Skill not found in package: ${skillName} (looked at ${src})`);
   }
+  await copyDir(src, dest);
+  return dest;
 }
 
-// ---- commands ---------------------------------------------------------------
+async function writeVersionTag(target, version) {
+  await fs.writeFile(
+    path.join(target, VERSION_FILE),
+    `${version}\n`,
+    'utf8'
+  );
+}
 
-async function cmdInstall(targetArg) {
+async function cmdInstallAll(targetArg) {
   const version = await getVersion();
   const target = resolveTarget(targetArg);
-  const skillMarker = path.join(target, 'SKILL.md');
-
-  if (existsSync(skillMarker)) {
-    console.log(`Existing skill found at ${target}. Use 'update' to upgrade.`);
-  }
-
-  await copySkillFiles(target);
-  await fs.writeFile(path.join(target, VERSION_FILE), `${version}\n`);
-
-  console.log(`Installed docmd-skills v${version} to ${target}`);
-  console.log(`\nNext steps:`);
-  console.log(`  - Point your agent at: ${path.join(target, 'SKILL.md')}`);
-  console.log(`  - Or use the MCP server: npx @docmd/core mcp`);
-  console.log(`  - See full reference files in: ${path.join(target, 'references')}`);
-}
-
-async function cmdUpdate(targetArg) {
-  const version = await getVersion();
-  const target = resolveTarget(targetArg);
-  const versionFile = path.join(target, VERSION_FILE);
-
-  if (!existsSync(path.join(target, 'SKILL.md'))) {
-    console.error(`No existing skill at ${target}. Run 'install' first.`);
-    process.exit(1);
-  }
-
-  let oldVersion = 'unknown';
-  if (existsSync(versionFile)) {
-    oldVersion = (await fs.readFile(versionFile, 'utf8')).trim();
-  }
-
-  console.log(`Updating from v${oldVersion} to v${version}`);
-  await copySkillFiles(target);
-  await fs.writeFile(versionFile, `${version}\n`);
-  console.log(`Done. Skill at ${target} is now v${version}.`);
-}
-
-async function cmdInfo(targetArg) {
-  const version = await getVersion();
   console.log(`docmd-skills v${version}`);
-  console.log(`  Package location: ${PKG_ROOT}`);
-
-  const target = resolveTarget(targetArg);
-  const versionFile = path.join(target, VERSION_FILE);
-  const installedMarker = path.join(target, 'SKILL.md');
-
-  if (existsSync(installedMarker)) {
-    let installed = 'unknown';
-    if (existsSync(versionFile)) {
-      installed = (await fs.readFile(versionFile, 'utf8')).trim();
-    }
-    console.log(`  Installed at:     ${target}`);
-    console.log(`  Installed version: ${installed}`);
-    if (installed !== version) {
-      console.log(`  → Run 'docmd-skills update' to upgrade.`);
-    }
-  } else {
-    console.log(`  No install found at ${target}.`);
-    console.log(`  → Run 'docmd-skills install' to set up.`);
+  console.log(`Installing all three skills to ${target}\n`);
+  for (const name of SKILL_NAMES) {
+    await installSkill(name, target);
+    console.log(`  + ${name}/`);
   }
-
-  const latest = getLatestNpmVersion();
-  if (latest) {
-    console.log(`  Latest on npm:    ${latest}`);
-    if (latest !== version) {
-      console.log(`  → Run 'npm install -g docmd-skills@latest' to upgrade the package itself.`);
-    }
-  }
+  await writeVersionTag(target, version);
+  console.log(`\nDone. Point your agent at:`);
+  console.log(`  ${target}/docmd-skills/SKILL.md`);
 }
+
+async function cmdAddSkill(skillName, targetArg) {
+  const version = await getVersion();
+  const target = resolveTarget(targetArg);
+  const userPath = path.join(target, 'docmd-skills');
+
+  // If the user skill isn't installed yet, fall back to a full install —
+  // it's friendlier than erroring out on a fresh directory.
+  if (!existsSync(userPath)) {
+    console.log(`docmd-skills user skill not found at ${target} — installing all three skills first.\n`);
+    return cmdInstallAll(targetArg);
+  }
+
+  console.log(`docmd-skills v${version}`);
+  console.log(`Adding ${skillName}/ to ${target}\n`);
+  await installSkill(skillName, target);
+  console.log(`  + ${skillName}/`);
+  await writeVersionTag(target, version);
+  console.log(`\nDone. The ${skillName} router is at:`);
+  console.log(`  ${target}/${skillName}/SKILL.md`);
+}
+
+// ---- uninstall --------------------------------------------------------------
 
 async function cmdUninstall(targetArg) {
+  const version = await getVersion();
   const target = resolveTarget(targetArg);
+
   if (!existsSync(target)) {
-    console.log(`Nothing to remove at ${target}.`);
+    console.log(`Nothing to remove at ${target}`);
     return;
   }
-  await fs.rm(target, { recursive: true, force: true });
-  console.log(`Removed ${target}`);
+
+  console.log(`docmd-skills v${version}`);
+  console.log(`Removing skills from ${target}\n`);
+  let removed = 0;
+  for (const name of SKILL_NAMES) {
+    const p = path.join(target, name);
+    if (existsSync(p)) {
+      await fs.rm(p, { recursive: true, force: true });
+      console.log(`  - ${name}/`);
+      removed++;
+    }
+  }
+  const verFile = path.join(target, VERSION_FILE);
+  if (existsSync(verFile)) {
+    await fs.rm(verFile, { force: true });
+  }
+  if (removed === 0) {
+    console.log(`\nNo docmd-skill folders found at ${target}.`);
+  } else {
+    console.log(`\nDone. ${removed} skill folder(s) removed.`);
+  }
+}
+
+// ---- maintainer hooks -------------------------------------------------------
+
+async function cmdSelfTest() {
+  const pkg = await readPkg();
+  let ok = true;
+
+  function check(label, cond) {
+    console.log(`${cond ? 'ok  ' : 'FAIL'}  ${label}`);
+    if (!cond) ok = false;
+  }
+
+  check('package.json present and valid', !!pkg.name && pkg.name === 'docmd-skills');
+  check('version is semver', /^\d+\.\d+\.\d+/.test(pkg.version));
+  check(`skills/ folder present`, existsSync(SKILLS_ROOT));
+
+  for (const name of SKILL_NAMES) {
+    const skillMd = path.join(SKILLS_ROOT, name, 'SKILL.md');
+    check(`${name}/SKILL.md present`, existsSync(skillMd));
+  }
+
+  // Verify references directories
+  const userRefs = path.join(SKILLS_ROOT, 'docmd-skills', 'references');
+  const devRefs = path.join(SKILLS_ROOT, 'docmd-dev', 'references');
+  const writerRefs = path.join(SKILLS_ROOT, 'docmd-writer', 'references');
+  check('docmd-skills/references/ present', existsSync(userRefs));
+  check('docmd-dev/references/ present', existsSync(devRefs));
+  check('docmd-writer/references/ present', existsSync(writerRefs));
+
+  console.log(ok ? '\nSelf-test passed.' : '\nSelf-test FAILED.');
+  process.exit(ok ? 0 : 1);
 }
 
 async function cmdPrePublish() {
-  const pkg = await readPkg();
-  const required = ['name', 'version', 'description', 'license', 'bin', 'files'];
-  const missing = required.filter((k) => !pkg[k]);
-  if (missing.length) {
-    console.error(`package.json missing required fields: ${missing.join(', ')}`);
-    process.exit(1);
-  }
-  for (const f of pkg.files) {
-    const p = path.join(PKG_ROOT, f);
-    if (!existsSync(p)) {
-      console.error(`Declared file/dir missing: ${f} (looked at ${p})`);
-      process.exit(1);
-    }
-  }
-  const binEntry = Object.values(pkg.bin)[0];
-  if (!binEntry) {
-    console.error('package.json bin map is empty.');
-    process.exit(1);
-  }
-  const binPath = path.join(PKG_ROOT, binEntry);
-  if (!existsSync(binPath)) {
-    console.error(`Bin entry missing: ${binEntry}`);
-    process.exit(1);
-  }
-  console.log(`Pre-publish check passed. Package ${pkg.name}@${pkg.version} ready.`);
-}
-
-async function cmdSelfTest() {
-  const version = await getVersion();
-  console.log(`docmd-skills v${version}`);
-
-  // Smoke-test the helpers without touching real install targets
-  const tmp = path.join(PKG_ROOT, '.self-test-tmp');
-  try {
-    await copySkillFiles(tmp);
-    const copied = existsSync(path.join(tmp, 'SKILL.md'));
-    if (!copied) throw new Error('SKILL.md not copied');
-    console.log('  copySkillFiles: OK');
-  } finally {
-    if (existsSync(tmp)) await fs.rm(tmp, { recursive: true, force: true });
-  }
-  await cmdPrePublish();
-  console.log('Self-test passed.');
+  // Same as self-test today; placeholder for future publish-time checks.
+  await cmdSelfTest();
 }
 
 async function cmdRelease(bumpType) {
-  if (!BUMP_TYPES.includes(bumpType)) {
-    console.error(`Invalid bump type: ${bumpType}. Use patch.`);
+  const valid = ['patch']; // extend to ['patch', 'minor', 'major'] when needed
+  if (!valid.includes(bumpType)) {
+    console.error(`Unsupported bump type: ${bumpType}. Allowed: ${valid.join(', ')}`);
     process.exit(1);
   }
-
-  // 1. Validate
-  await cmdPrePublish();
-
-  // 2. Check working tree is clean
-  let status = '';
-  try {
-    status = execSync('git status --porcelain', {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-  } catch {
-    console.error('Not a git repository. Run this from the docmd-skills repo root.');
-    process.exit(1);
-  }
-  if (status) {
-    console.error('Working tree is dirty. Commit or stash your changes first.');
-    console.error(status);
-    process.exit(1);
-  }
-
-  // 3. Bump version
-  console.log(`Bumping version (${bumpType})...`);
-  execSync(`npm version ${bumpType}`, { stdio: 'inherit' });
-
-  // 4. Publish
-  console.log('Publishing to npm...');
+  console.log(`Releasing ${bumpType}…`);
+  const { execSync } = await import('node:child_process');
+  const pkg = await readPkg();
+  const [maj, min, pat] = pkg.version.split('.').map(Number);
+  const next =
+    bumpType === 'patch' ? `${maj}.${min}.${pat + 1}` :
+    bumpType === 'minor' ? `${maj}.${min + 1}.0` :
+    `${maj + 1}.0.0`;
+  pkg.version = next;
+  await fs.writeFile(
+    path.join(PKG_ROOT, 'package.json'),
+    JSON.stringify(pkg, null, 2) + '\n',
+    'utf8'
+  );
+  console.log(`Bumped to ${next}`);
+  execSync('git add package.json', { stdio: 'inherit' });
+  execSync(`git commit -m "chore(release): v${next}"`, { stdio: 'inherit' });
+  execSync(`git tag v${next}`, { stdio: 'inherit' });
+  execSync('git push && git push --tags', { stdio: 'inherit' });
   execSync('npm publish', { stdio: 'inherit' });
-
-  // 5. Push tags
-  console.log('Pushing tags...');
-  execSync('git push --follow-tags', { stdio: 'inherit' });
-
-  console.log('Release complete.');
 }
 
-// ---- entry point ------------------------------------------------------------
+// ---- entry ------------------------------------------------------------------
 
 async function main() {
   const args = process.argv.slice(2);
-  const version = await getVersion();
 
-  // Flags first
+  // Flags
   if (args.includes('-h') || args.includes('--help')) {
-    printHelp(version);
+    printHelp(await getVersion());
     return;
   }
   if (args.includes('-v') || args.includes('--version')) {
-    console.log(version);
+    console.log(await getVersion());
     return;
   }
 
-  const cmd = args[0];
-  const arg = args[1];
+  // Maintainer hooks (hidden — not in help)
+  if (args[0] === '--self-test') return cmdSelfTest();
+  if (args[0] === '--pre-publish') return cmdPrePublish();
+  if (args[0] === '--release') return cmdRelease(args[1] || 'patch');
 
-  switch (cmd) {
-    case 'install':
-      await cmdInstall(arg);
-      return;
-    case 'update':
-      await cmdUpdate(arg);
-      return;
-    case 'info':
-      await cmdInfo(arg);
-      return;
+  // User-facing subcommands
+  const sub = args[0];
+  const rest = args.slice(1);
+
+  switch (sub) {
+    case 'dev':
+      return cmdAddSkill('docmd-dev', rest[0]);
+    case 'writer':
+      return cmdAddSkill('docmd-writer', rest[0]);
     case 'uninstall':
     case 'remove':
-      await cmdUninstall(arg);
-      return;
-    case '--pre-publish':
-      await cmdPrePublish();
-      return;
-    case '--self-test':
-      await cmdSelfTest();
-      return;
-    case '--release':
-      await cmdRelease(arg);
-      return;
+    case 'rm':
+      return cmdUninstall(rest[0]);
+    case undefined:
+      return cmdInstallAll(undefined);
     default:
-      printHelp(version);
-      if (cmd && !cmd.startsWith('-')) {
-        console.error(`\nUnknown command: ${cmd}`);
-        process.exit(1);
-      }
+      // First positional is treated as a target dir.
+      return cmdInstallAll(sub);
   }
 }
 
 main().catch((err) => {
-  console.error(err && err.stack ? err.stack : err);
+  console.error(`docmd-skills: ${err.message}`);
   process.exit(1);
 });

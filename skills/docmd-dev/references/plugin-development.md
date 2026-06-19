@@ -310,8 +310,8 @@ The `docmd-plugin-` prefix is a convention, not an enforced rule, but it is requ
 
 ## See Also {#see-also}
 
-- [SKILL.md §7](../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
-- [plugins.md](./plugins.md) — built-in plugins you can model your plugin after
-- [api.md](./api.md) — `loadPlugins`, `createActionDispatcher`, URL utilities
-- [config.md#plugins-config](./config.md#plugins-config) — how plugins are wired into config
+- [SKILL.md §7](../../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
+- [plugins.md](../../docmd-skills/references/plugins.md) — built-in plugins you can model your plugin after
+- [api-dev.md](./api-dev.md) — `loadPlugins`, `createActionDispatcher`, URL utilities
+- [config.md#plugins-config](../../docmd-skills/references/config.md#plugins-config) — how plugins are wired into config
 - [engines.md](./engines.md) — engine boundary, serialization gotchas
