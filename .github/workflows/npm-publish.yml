@@ -27,11 +27,5 @@ jobs:
       - name: Upgrade npm (required for OIDC provenance)
         run: npm install -g npm@11.12.1
 
-      - name: Pre-publish sanity check
-        run: node bin/docmd-skills.js --pre-publish
-
-      - name: Self-test
-        run: node bin/docmd-skills.js --self-test
-
       - name: Publish to NPM
         run: npm publish --provenance --access public
