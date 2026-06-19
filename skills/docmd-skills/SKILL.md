@@ -3,7 +3,7 @@ name: docmd-skills
 description: Use this skill when working with a docmd site — scaffolding, configuring, building, validating, deploying, or operating one. Covers the CLI, config, themes, plugins, MCP, migration, and deployment.
 audience: user
 load_command: docmd-skills (default install)
-version: 1.2.0
+version: 1.1.0
 verified_against:
   docmd: "0.8.7"
   node: ">=18"

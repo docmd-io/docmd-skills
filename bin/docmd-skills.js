@@ -46,31 +46,28 @@ function resolveTarget(argTarget) {
 function printHelp(version) {
   console.log(`docmd-skills v${version}
 
-Installs modular AI agent skills for docmd (the zero-config documentation engine).
+Installs AI agent skills for docmd (the zero-config documentation engine).
 
-Three skills ship in this package:
-  docmd-skills/    Use when building, configuring, or operating a docmd site (default)
+Available skills:
+  docmd-skills/    Use when building, configuring, or operating a docmd site
   docmd-dev/       Use when contributing to the docmd framework in its monorepo
   docmd-writer/    Use when writing or reviewing the prose inside a docmd site
 
 Usage:
-  docmd-skills [dir]                  Install all three skills to <dir>
-  docmd-skills dev [dir]              Add docmd-dev to an existing install
-  docmd-skills writer [dir]           Add docmd-writer to an existing install
-  docmd-skills uninstall [dir]        Remove all installed skills from <dir>
+  docmd-skills [dir]                  Install
+  docmd-skills dev [dir]              Add docmd-dev
+  docmd-skills writer [dir]           Add docmd-writer
+  docmd-skills remove [dir]           Remove all installed skills
 
 Options:
   -h, --help                         Show this help
   -v, --version                      Show package version
 
-Default <dir>: ${DEFAULT_TARGET}
-
 Examples:
-  npx docmd-skills                            # install all three skills
-  npx docmd-skills ~/.claude/skills/docmd     # install into Claude skills folder
-  npx docmd-skills dev ~/.claude/skills/docmd # add dev skill alongside
+  npx docmd-skills ~/.claude/skills/docmd
+  npx docmd-skills dev ~/.claude/skills/docmd
   npx docmd-skills writer ~/.claude/skills/docmd
-  npx docmd-skills uninstall ~/.claude/skills/docmd
+  npx docmd-skills remove ~/.claude/skills/docmd
 `);
 }
 
@@ -94,11 +91,26 @@ async function writeVersionTag(target, version) {
   );
 }
 
+// Wipe an existing skill folder so renamed/removed files don't linger
+// from a previous install. Only touches the named skill subdirectory —
+// never the parent `<dir>` or any user files alongside it.
+async function wipeSkill(skillName, target) {
+  const existing = path.join(target, skillName);
+  if (existsSync(existing)) {
+    await fs.rm(existing, { recursive: true, force: true });
+  }
+}
+
 async function cmdInstallAll(targetArg) {
   const version = await getVersion();
   const target = resolveTarget(targetArg);
   console.log(`docmd-skills v${version}`);
-  console.log(`Installing all three skills to ${target}\n`);
+  console.log(`Installing to ${target}\n`);
+  // Wipe first so renamed/removed files from a previous install don't linger.
+  for (const name of SKILL_NAMES) {
+    await wipeSkill(name, target);
+  }
+  // Now copy fresh.
   for (const name of SKILL_NAMES) {
     await installSkill(name, target);
     console.log(`  + ${name}/`);
@@ -122,6 +134,8 @@ async function cmdAddSkill(skillName, targetArg) {
 
   console.log(`docmd-skills v${version}`);
   console.log(`Adding ${skillName}/ to ${target}\n`);
+  // Wipe first so renamed/removed files from a previous install don't linger.
+  await wipeSkill(skillName, target);
   await installSkill(skillName, target);
   console.log(`  + ${skillName}/`);
   await writeVersionTag(target, version);
@@ -129,9 +143,9 @@ async function cmdAddSkill(skillName, targetArg) {
   console.log(`  ${target}/${skillName}/SKILL.md`);
 }
 
-// ---- uninstall --------------------------------------------------------------
+// ---- remove -----------------------------------------------------------------
 
-async function cmdUninstall(targetArg) {
+async function cmdRemove(targetArg) {
   const version = await getVersion();
   const target = resolveTarget(targetArg);
 
@@ -140,6 +154,8 @@ async function cmdUninstall(targetArg) {
     return;
   }
 
+  // Only touch the three named skill folders plus our version tag.
+  // Any other files alongside in `<dir>` are left alone.
   console.log(`docmd-skills v${version}`);
   console.log(`Removing skills from ${target}\n`);
   let removed = 0;
@@ -231,14 +247,15 @@ async function cmdRelease(bumpType) {
 
 async function main() {
   const args = process.argv.slice(2);
+  const version = await getVersion();
 
   // Flags
   if (args.includes('-h') || args.includes('--help')) {
-    printHelp(await getVersion());
+    printHelp(version);
     return;
   }
   if (args.includes('-v') || args.includes('--version')) {
-    console.log(await getVersion());
+    console.log(version);
     return;
   }
 
@@ -251,17 +268,21 @@ async function main() {
   const sub = args[0];
   const rest = args.slice(1);
 
+  // A target directory is required for every action. Without one, show help.
+  if (!sub) return printHelp(version);
+
   switch (sub) {
     case 'dev':
+      if (!rest[0]) return printHelp(version);
       return cmdAddSkill('docmd-dev', rest[0]);
     case 'writer':
+      if (!rest[0]) return printHelp(version);
       return cmdAddSkill('docmd-writer', rest[0]);
-    case 'uninstall':
     case 'remove':
-    case 'rm':
-      return cmdUninstall(rest[0]);
-    case undefined:
-      return cmdInstallAll(undefined);
+    case 'uninstall': // legacy alias
+    case 'rm':        // legacy alias
+      if (!rest[0]) return printHelp(version);
+      return cmdRemove(rest[0]);
     default:
       // First positional is treated as a target dir.
       return cmdInstallAll(sub);

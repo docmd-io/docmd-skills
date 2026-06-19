@@ -296,6 +296,6 @@ Your `tsconfig.json` should keep `src/index.ts` as the only entry. The `tsc` bui
 - [SKILL.md §7](../../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
 - [plugin-development.md](./plugin-development.md) — for non-template plugins (use the same `plugin` descriptor, different `capabilities`)
 - [api-dev.md#template-resolver-api](./api-dev.md#template-resolver-api) — runtime API for resolving and clearing templates
-- [config.md#theme](../../docmd-skills/references/config.md#theme) — `theme.template`, `templates` map, and `frontmatter.template`
+- **config.md** (in the docmd-skills skill) — `theme.template`, `templates` map, and `frontmatter.template`
 - [summer template on GitHub](https://github.com/docmd-io/docmd/tree/main/packages/templates/summer) — canonical worked example
 - [summer template package](https://www.npmjs.com/package/@docmd/template-summer)

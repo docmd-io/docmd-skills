@@ -7,7 +7,7 @@ when_to_use: |
   - Resolving which template file renders a given slot (`resolveTemplate` from `@docmd/ui`)
   - Pulling TypeScript types for plugin authoring
 
-  For the user-facing programmatic build API (`buildSite`, `buildLive`, workspace orchestration), see [api-user.md](../../docmd-skills/references/api-user.md).
+  For the user-facing programmatic build API (`buildSite`, `buildLive`, workspace orchestration), see **api-user.md** in the docmd-skills skill.
 audience: dev
 verified_against:
   docmd: "0.8.7"
@@ -18,7 +18,7 @@ verified_against:
 
 Use this when writing a **docmd plugin, custom template, or modifying the engine**. The dev-facing APIs live in `@docmd/api` (and are re-exported from `@docmd/core`).
 
-For the user-facing build API (`buildSite`, `buildLive`, workspace orchestration), see [api-user.md](../../docmd-skills/references/api-user.md) instead.
+For the user-facing build API (`buildSite`, `buildLive`, workspace orchestration), see **api-user.md** in the docmd-skills skill instead.
 
 ## URL Utilities (`@docmd/api`) {#url-utilities}
 

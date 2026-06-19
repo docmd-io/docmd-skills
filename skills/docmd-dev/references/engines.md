@@ -151,5 +151,5 @@ registerEngine('custom', {
 
 - [SKILL.md §7](../../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
 - [api-dev.md](./api-dev.md) — `loadEngine`, `registerEngine` signatures
-- [config.md](../../docmd-skills/references/config.md) — where the `engine` key lives
+- **config.md** (in the docmd-skills skill) — where the `engine` key lives
 - [plugin-development.md](./plugin-development.md) — plugin capabilities that interact with engines

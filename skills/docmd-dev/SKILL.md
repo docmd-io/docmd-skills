@@ -3,7 +3,7 @@ name: docmd-dev
 description: Use this skill when contributing to the docmd framework itself — working in the cloned `docmd/` monorepo. Covers plugin authoring, template authoring, engine loaders, the public Node API, and the hooks/action system.
 audience: developer
 load_command: docmd-skills dev <dir>
-version: 1.2.0
+version: 1.1.0
 verified_against:
   docmd: "0.8.7"
   node: ">=18"
@@ -30,6 +30,8 @@ Use it when **any one** of these signals is true:
 2. The user explicitly says they want to "write a plugin", "write a template", "extend the engine", "modify the core", "add a hook", or similar.
 3. The user is editing files inside `packages/core/src/`, `packages/api/src/`, `packages/ui/src/`, `packages/plugins/*/src/`, or `packages/engines/*/` of the docmd monorepo.
 
+**If the user wants framework help but no `docmd/` clone exists in the working directory**, ask before doing anything: would they like you to clone the monorepo (`git clone https://github.com/docmd-io/docmd.git docmd`) or refresh an existing one (`git -C docmd pull`)? Do not start editing framework source without an up-to-date local clone.
+
 Do not use it for: site-level configuration or operations (use **docmd-skills**), or for page-prose quality (use **docmd-writer**).
 
 ## Loading rules
@@ -50,13 +52,24 @@ Each row is a reference file. The CLI column shows which install subcommand adds
 
 ## Workflows
 
-### 1. Cloning the monorepo
+### 1. Cloning or refreshing the monorepo
+
+**No clone yet** — clone and install:
 
 ```bash
 git clone https://github.com/docmd-io/docmd.git docmd
 cd docmd
 pnpm install
 ```
+
+**Existing clone** — refresh and re-install dependencies if needed:
+
+```bash
+git -C docmd pull
+pnpm install
+```
+
+To check whether a clone is behind before deciding, run `git -C docmd status` (look for "Your branch is behind") or `git -C docmd log -1 --oneline` and compare to <https://github.com/docmd-io/docmd/commits/main>.
 
 The local clone directory is `docmd/` (not `docmd-io/docmd/`). Inside it you will find the canonical package layout referenced throughout this skill.
 

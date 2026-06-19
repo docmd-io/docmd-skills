@@ -1,9 +1,9 @@
 ---
 name: docmd-writer
-description: Use this skill when writing, reviewing, or improving the prose inside a docmd site — page structure, voice, headings, and code-block conventions. Covers the Diátaxis doc-type split, British-English voice, the universal page skeleton, and the file-title rule for code blocks.
+description: Use this skill when writing or reviewing prose inside a docmd site. Owns Diátaxis doc types, voice, page structure, and code-block conventions; defers to docmd-skills for all docmd-specific syntax (containers, tabs, cards, grids, steps, collapsibles, buttons, tags, embeds, changelogs, Mermaid, frontmatter). Multi-lingual and SEO-aware.
 audience: writer
 load_command: docmd-skills writer <dir>
-version: 1.2.0
+version: 1.1.0
 verified_against:
   docmd: "0.8.7"
   tested_on: 2026-06-19
@@ -37,7 +37,16 @@ Do not use it for: site configuration (`docmd.config.json`), CLI commands, build
 
 - Load this skill whenever the user pastes, edits, or asks to "improve" prose in `.md` files inside a docmd `docs/` tree.
 - The docmd docs site itself uses docmd, so writing for that site also counts as a docmd task.
-- Combine with **docmd-skills** for container syntax (callouts, tabs, cards, grids, steps) and frontmatter shape; this skill focuses on prose quality, voice, structure, and code-block conventions.
+
+### Docmd awareness
+
+When the target site uses docmd, pages can carry docmd-specific elements that this skill does **not** author:
+
+- `:::` containers — callouts, cards, grids, tabs, steps, collapsibles, buttons, tags, embeds, changelogs
+- `mermaid` code blocks (diagrams)
+- frontmatter shape (`title`, `description`, `template`, etc.)
+
+All of those live in **docmd-skills** `references/formatting.md`. Load docmd-skills alongside this skill whenever the page will use any of them; defer to it for the exact container markers, frontmatter keys, and theme/asset behaviour. This skill owns the **prose between** those elements — voice, structure, doc type, and code-block conventions.
 
 ## Voice baseline
 
@@ -75,7 +84,7 @@ Each row is a reference file. The CLI column shows which install subcommand adds
 1. Read the page in full once for intent.
 2. Identify doc-type mismatch (a "tutorial" that explains instead of walking through, a "how-to" that lectures).
 3. Run the headings-and-structure checklist.
-4. Run the code-blocks checklist (file-title rule is the #1 miss).
+4. Run the code-blocks checklist alongside whenever writing for a docmd site. It owns all container syntax (callouts, tabs, cards, grids, steps, collapsibles, buttons, tags, embeds, changelogs, Mermaid), frontmatter shape, and navigation rules. This skill owns the prose inside and around those elements
 5. Apply voice edits in a single pass — do not micro-edit line by line.
 
 ### 3. Translating or re-translating

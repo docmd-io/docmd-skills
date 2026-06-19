@@ -7,7 +7,7 @@ when_to_use: |
   - Listening for SPA client-side events to wire third-party scripts
   - Connecting an MCP-aware host to the docmd docs site
 
-  For plugin-author internals (`@docmd/api` package, URL utilities, action dispatcher, source tools, engine loader), see [api-dev.md](../../docmd-dev/references/api-dev.md).
+  For plugin-author internals (`@docmd/api` package, URL utilities, action dispatcher, source tools, engine loader), see **api-dev.md** in the docmd-dev skill.
 audience: user
 verified_against:
   docmd: "0.8.7"
@@ -16,7 +16,7 @@ verified_against:
 
 # API Reference (User)
 
-Use this when calling docmd from your own code as a **user of the tool**. If you're writing a docmd plugin, custom template, or modifying the engine itself, load [api-dev.md](../../docmd-dev/references/api-dev.md) instead.
+Use this when calling docmd from your own code as a **user of the tool**. If you're writing a docmd plugin, custom template, or modifying the engine itself, load **api-dev.md** from the docmd-dev skill instead.
 
 Prefer `@docmd/api` over `@docmd/core` for type-only or utility imports. They are re-exported from `core`, but `api` has the focused surface that tree-shakes cleanly.
 
@@ -172,4 +172,4 @@ Cursor / Windsurf:
 
 - [SKILL.md §4](../SKILL.md#4-mcp-server) — full MCP section with handshake sequence
 - [SKILL.md §7](../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
-- [api-dev.md](../../docmd-dev/references/api-dev.md) — for plugin-author internals (`@docmd/api`, URL utilities, action dispatcher, engine loader, types)
+- **api-dev.md** (in the docmd-dev skill) — for plugin-author internals (`@docmd/api`, URL utilities, action dispatcher, engine loader, types)
