@@ -12,11 +12,8 @@
     "README.md",
     "LICENSE"
   ],
-  "scripts": {
-    "test": "node bin/docmd-skills.js --self-test"
-  },
   "engines": {
-    "node": ">=18"
+    "node": "^20"
   },
   "keywords": [
     "docmd",

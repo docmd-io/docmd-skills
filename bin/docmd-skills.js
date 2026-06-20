@@ -178,71 +178,6 @@ async function cmdRemove(targetArg) {
   }
 }
 
-// ---- maintainer hooks -------------------------------------------------------
-
-async function cmdSelfTest() {
-  const pkg = await readPkg();
-  let ok = true;
-
-  function check(label, cond) {
-    console.log(`${cond ? 'ok  ' : 'FAIL'}  ${label}`);
-    if (!cond) ok = false;
-  }
-
-  check('package.json present and valid', !!pkg.name && pkg.name === 'docmd-skills');
-  check('version is semver', /^\d+\.\d+\.\d+/.test(pkg.version));
-  check(`skills/ folder present`, existsSync(SKILLS_ROOT));
-
-  for (const name of SKILL_NAMES) {
-    const skillMd = path.join(SKILLS_ROOT, name, 'SKILL.md');
-    check(`${name}/SKILL.md present`, existsSync(skillMd));
-  }
-
-  // Verify references directories
-  const userRefs = path.join(SKILLS_ROOT, 'docmd-skills', 'references');
-  const devRefs = path.join(SKILLS_ROOT, 'docmd-dev', 'references');
-  const writerRefs = path.join(SKILLS_ROOT, 'docmd-writer', 'references');
-  check('docmd-skills/references/ present', existsSync(userRefs));
-  check('docmd-dev/references/ present', existsSync(devRefs));
-  check('docmd-writer/references/ present', existsSync(writerRefs));
-
-  console.log(ok ? '\nSelf-test passed.' : '\nSelf-test FAILED.');
-  process.exit(ok ? 0 : 1);
-}
-
-async function cmdPrePublish() {
-  // Same as self-test today; placeholder for future publish-time checks.
-  await cmdSelfTest();
-}
-
-async function cmdRelease(bumpType) {
-  const valid = ['patch']; // extend to ['patch', 'minor', 'major'] when needed
-  if (!valid.includes(bumpType)) {
-    console.error(`Unsupported bump type: ${bumpType}. Allowed: ${valid.join(', ')}`);
-    process.exit(1);
-  }
-  console.log(`Releasing ${bumpType}…`);
-  const { execSync } = await import('node:child_process');
-  const pkg = await readPkg();
-  const [maj, min, pat] = pkg.version.split('.').map(Number);
-  const next =
-    bumpType === 'patch' ? `${maj}.${min}.${pat + 1}` :
-    bumpType === 'minor' ? `${maj}.${min + 1}.0` :
-    `${maj + 1}.0.0`;
-  pkg.version = next;
-  await fs.writeFile(
-    path.join(PKG_ROOT, 'package.json'),
-    JSON.stringify(pkg, null, 2) + '\n',
-    'utf8'
-  );
-  console.log(`Bumped to ${next}`);
-  execSync('git add package.json', { stdio: 'inherit' });
-  execSync(`git commit -m "chore(release): v${next}"`, { stdio: 'inherit' });
-  execSync(`git tag v${next}`, { stdio: 'inherit' });
-  execSync('git push && git push --tags', { stdio: 'inherit' });
-  execSync('npm publish', { stdio: 'inherit' });
-}
-
 // ---- entry ------------------------------------------------------------------
 
 async function main() {
@@ -258,11 +193,6 @@ async function main() {
     console.log(version);
     return;
   }
-
-  // Maintainer hooks (hidden — not in help)
-  if (args[0] === '--self-test') return cmdSelfTest();
-  if (args[0] === '--pre-publish') return cmdPrePublish();
-  if (args[0] === '--release') return cmdRelease(args[1] || 'patch');
 
   // User-facing subcommands
   const sub = args[0];

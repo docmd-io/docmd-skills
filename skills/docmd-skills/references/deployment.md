@@ -226,6 +226,8 @@ docker build -t my-docs .
 docker run -p 80:80 my-docs
 ```
 
+The generated Dockerfile uses `node:20-alpine` as the base image, matching the framework's runtime requirement (`engines.node: "^20"`). Bump the tag if you need a different Node major — keep it on the same major as the framework.
+
 ### nginx {#deploy-nginx}
 
 Generates a production-ready nginx.conf with SPA routing, gzip compression, and security headers:

@@ -6,6 +6,7 @@ load_command: docmd-skills writer <dir>
 version: 1.1.0
 verified_against:
   docmd: "0.8.7"
+  node: "^20"
   tested_on: 2026-06-19
 repository: https://github.com/docmd-io/docmd-skills
 docs: https://docs.docmd.io
