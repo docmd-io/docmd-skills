@@ -1,6 +1,6 @@
 {
   "name": "docmd-skills",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "AI agent skills for docmd – the zero-config AI-first documentation engine. Installs the user skill (site building, config, deploy) with dev (framework internals) and writer (prose quality) skills.",
   "type": "module",
   "bin": {
