@@ -1,6 +1,6 @@
 ---
 name: docmd-dev
-description: Use this skill when contributing to the docmd framework itself — working in the cloned `docmd/` monorepo. Covers plugin authoring, template authoring, engine loaders, the public Node API, and the hooks/action system.
+description: Use this skill when contributing to the docmd framework itself — working in the cloned `docmd/` monorepo. Covers plugin authoring, template authoring, engine loaders, the public Node API, and the hooks/action system. docmd is Node.js and TypeScript only, so it enforces a security and quality gate (see the security-and-regression-checklist reference) before any framework change ships.
 audience: developer
 load_command: docmd-skills dev <dir>
 version: 1.1.0
@@ -50,6 +50,7 @@ Each row is a reference file. The CLI column shows which install subcommand adds
 | `references/plugin-development.md` | `docmd-skills dev` | Authoring a docmd plugin: package shape, manifest, `apply()` lifecycle, `template` capability, hooks, testing |
 | `references/template-development.md` | `docmd-skills dev` | Authoring a docmd theme/template: 12 template slots, asset pipeline, `manifest.json`, template plugins |
 | `references/engines.md` | `docmd-skills dev` | JS vs Rust build engines, swapping engines, engine-specific config, performance trade-offs |
+| `references/security-and-regression-checklist.md` | `docmd-skills dev` | docmd-specific security and quality gate: container parser invariants, plugin HTML-injection contract, public API honesty, i18n/versioning silent-failure rules, deploy/Docker hardening, migration correctness, CLI honesty, loud fallbacks. Load before any framework change ships. Builds on `ai-dev`'s `nodejs-cautions.md` and `security-must-checks.md`. |
 
 ## Workflows
 
@@ -91,6 +92,18 @@ The local clone directory is `docmd/` (not `docmd-io/docmd/`). Inside it you wil
 
 1. `references/engines.md` first — confirms which engine you're targeting and its config keys.
 2. For Node-level changes to the engine loader, `references/api-dev.md` § "Engine Loader API".
+
+### 5. Hard checks before any framework change ships
+
+docmd is Node.js and TypeScript only, so the generic Node rules always apply. Run this gate before declaring a framework change done:
+
+1. Generic Node triage from `ai-dev`: `references/nodejs-cautions.md` §1.1 grep checklist, the Appendix 5-minute review, and Part 12 (contract honesty and silent failures).
+2. `ai-dev` `references/security-must-checks.md` Rules 1 to 7, with docmd's common-miss spots in mind (plugins, MCP tools, container blocks, deploy templates).
+3. `references/security-and-regression-checklist.md` — run every section that touches the area you changed. This is the docmd-only layer and the direct output of the v0.8.x battle test (`battle-test-reports/unified-issues.md`).
+4. `pnpm prep` for anything non-trivial.
+5. One regression test per bug class fixed, named after the report ID where possible.
+
+If any MUST in those references is unresolved, the change is not done.
 
 ## Cross-skill navigation
 
