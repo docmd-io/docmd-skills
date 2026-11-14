@@ -1,255 +1,283 @@
 ---
-description: Complete configuration schema for docmd.config.json. Use when setting up or modifying docmd configuration.
+description: Complete configuration schema for docmd.config.json / .jsonc / .ts / .js. Covers core settings, static root assets (public/), exclude globs, theme & template, layout, Focus Mode, print & copy widgets, 7-position banners, cookie consent, security.html, markdown options, i18n, versions, serve, and plugins.
 when_to_use: |
   Read this file when you are:
-  - Setting up `docmd.config.json` for the first time and need the full key set
-  - Hunting for the right key to toggle a specific behavior (theme, layout, navigation, i18n, versions)
-  - Looking up what a config key defaults to
-  - Debugging why SEO, sitemap, or canonical URLs aren't being generated
-  - Migrating from a non-standard config (see also [migration.md](./migration.md))
+  - Setting up or editing `docmd.config.json` (`.jsonc`, `.ts`, `.js`)
+  - Configuring `public/` static root assets (`static`), file exclusions (`exclude`), or the build engine (`js`, `rust`, `python`)
+  - Configuring UI zones (`layout.header`, `sidebar`, `optionsMenu`, `focusMode`, `print`, `copyWidgets`, `titleSeparator`, `titleAppend`, `footer`)
+  - Setting up multi-position announcements or sponsor cards (`layout.banners` across 7 positions)
+  - Configuring `security.html`, `markdown.linkify`, `markdown.typographer`, `markdown.linkifyDefaultScheme`, `cookieConsent`, or `serve`
 audience: user
 verified_against:
-  docmd: "0.8.7"
-  tested_on: 2026-06-19
+  docmd: "0.10.0"
+  tested_on: 2026-11-14
 ---
 
 # Configuration Reference
 
-The smallest valid config is three keys: `title`, `url`, and `src`. All other keys have defaults.
-
 Full docs:
-* Configuration - https://docs.docmd.io/configuration/overview
+* General Configuration — https://docs.docmd.io/configuration/overview
+* Layout & UI Zones — https://docs.docmd.io/configuration/layout-ui
+* Site Banners — https://docs.docmd.io/configuration/site-banner
+* Security & HTML Policy — https://docs.docmd.io/configuration/security
 
-Configuration file: `docmd.config.json` (also supports `.js` and `.ts`)
+Supported config files: `docmd.config.json`, `docmd.config.jsonc` (comments and trailing commas supported), `docmd.config.ts`, and `docmd.config.js`.
 
-## Zero-Config {#zero-config}
+## Zero-Config Mode {#zero-config}
 
-Without a config file, docmd auto-detects source from `docs/`, `src/docs/`, `documentation/`, or any `.md` folder. Navigation, titles, search, and TOC are set up automatically.
+Without a config file, docmd auto-detects markdown sources from `docs/`, `src/docs/`, `documentation/`, or the current directory, and sets up navigation, titles, search, TOC, and `public/` root asset copying automatically.
 
-## Core Settings {#core-settings}
+## Core Top-Level Settings {#core-settings}
 
 | Key | Type | Default | Description |
 |:--|:--|:--|:--|
-| `title` | String | `"Documentation"` | Site name — appears in nav, browser tabs, and SEO |
-| `description` | String | — | Fallback meta description for pages without their own |
-| `url` | String | — | Canonical production URL. Required for SEO, sitemap, and canonical links |
-| `src` | String | `"docs"` | Relative path to source markdown directory |
-| `out` | String | `"site"` | Relative path for compiled static output |
-| `base` | String | `"/"` | Root base path for subfolder hosting (e.g. `/docs/`) |
-| `engine` | String | `"js"` | Build engine: `"js"` (stable, default) or `"rust"` (native preview) |
-| `tmp` | String | — | Custom temp/cache directory for intermediate build files |
-| `favicon` | String | — | Path to favicon file |
-| `minify` | Boolean | `true` | Compress output HTML/JS. Set `false` for debug builds |
-| `autoTitleFromH1` | Boolean | `true` | When page has no `title` in frontmatter, use first `# H1` heading |
-| `copyCode` | Boolean | `true` | Show "Copy" button on fenced code blocks |
-| `pageNavigation` | Boolean | `true` | Show right-hand "On This Page" TOC sidebar |
-| `markdown.breaks` | Boolean | `true` | Convert single newlines to `<br>`. Set `false` for 80-column-wrapped markdown |
+| `title` | `string` | `"Documentation"` | Site name — displayed in nav header, browser `<title>`, and SEO metadata |
+| `description` | `string` | — | Fallback meta description for pages without frontmatter `description` |
+| `url` | `string` | `""` | Canonical production URL (e.g. `"https://docs.example.com"`). Required for sitemap, canonical links, and OpenGraph |
+| `src` | `string` | `"docs"` | Relative path to source Markdown/MDX directory |
+| `out` | `string` | `"site"` | Relative path for compiled static output |
+| `base` | `string` | `"/"` | Root URL base path for subpath hosting (e.g. `"/docs/"`) |
+| `static` | `string \| string[] \| boolean` | `undefined` (auto `public/`) | Public static root assets pipeline (new in 0.10.0). Automatically copies top-level `public/` contents directly to the output root (`robots.txt`, `CNAME`, `.well-known/*`, `favicon.ico`). Pass custom path(s) or `false` to disable |
+| `exclude` | `string[]` | `[]` | Gitignore-style glob patterns excluded from build, link validation, and MCP tools (e.g. `["drafts/**", "archive/*.md"]`). Note: `.gitignore` is also honoured automatically |
+| `engine` | `'js' \| 'rust' \| 'python'` | `'js'` | Build engine: `'js'` (default), `'rust'` (`@docmd/engine-rust`), or `'python'` (`@docmd/engine-python`) |
+| `tmp` | `string` | `null` | Custom temp/cache directory for intermediate build files |
+| `favicon` | `string` | — | Path to site favicon (e.g. `"assets/favicon.ico"`) |
+| `minify` | `boolean` | `true` | Minify compiled HTML, CSS, and JS |
+| `autoTitleFromH1` | `boolean` | `true` | Use the page's first `# H1` as title when frontmatter `title` is omitted |
+| `variables` | `object \| string` | `{}` | Build-time and reactive client variables (or path to `./data/variables.json` / `.js`). See [variables.md](./variables.md) |
+| `templates` | `Record<string, string>` | `{}` | Per-section glob-to-template map (e.g. `{ "blog/*": "summer" }`) |
+| `plugins` | `Record<string, any>` | `{}` | Plugin configuration map. See [plugins.md](./plugins.md) |
+| `serve` | `object` | `{ host: "127.0.0.1", port: 3000 }` | Production HTTP server config for `docmd serve`. See [deployment.md](./deployment.md#production-server-docmd-serve) |
 
-Note: `url` is required for sitemap, canonical `<link>` tags, and `og:url`. If `url` is missing, the build succeeds but those values will be empty in the output. Set `url` even for local-only work (`"http://localhost:3000"`).
+> **Pre-render variable interpolation:** `docmd` interpolates `{{ variable }}` tokens inside config strings (such as `layout.banners.*.content`, `layout.footer.content`, `footer.copyright`, `title`) before rendering templates. See [variables.md](./variables.md).
 
-## Logo {#logo}
+## Logo & Theme (`logo`, `theme`) {#logo-and-theme}
 
-```jsonc
-"logo": {
-  "light": "assets/images/logo-dark.png",  // Logo for light mode
-  "dark": "assets/images/logo-light.png",  // Logo for dark mode
-  "href": "/",                              // Click destination
-  "alt": "Logo",                            // Alt text
-  "height": "32px"                          // CSS height
+```jsonc "docmd.config.json"
+{
+  "logo": {
+    "light": "assets/images/logo-dark.png",  // Used on light background
+    "dark": "assets/images/logo-light.png",  // Used on dark background
+    "href": "/",                              // Internal path or external URL (bypasses SPA router if external)
+    "alt": "Company Logo",
+    "height": "32px"
+  },
+  "theme": {
+    "name": "default",        // "default", "sky", "ruby", etc., or "summer" (auto-promotes to theme.template)
+    "template": "summer",     // Optional explicit template package ("default" or "summer" / "@docmd/template-*")
+    "appearance": "system",   // "light" | "dark" | "system" (default: "system")
+    "default": "light",       // Fallback when appearance is "system"
+    "codeHighlight": true,
+    "colors": {
+      "primary": "#3b82f6",
+      "background": "#ffffff"
+    },
+    "customCss": ["/assets/css/custom.css"], // Loaded at priority 15 (overrides default template priority 10)
+    "customJs": ["/assets/js/custom.js"]
+  }
 }
 ```
 
-The keys are named by the background they sit on (not the logo color): `light` is the logo used against a light background.
+## Layout, Focus Mode, Copy Widgets & Multi-Position Banners (`layout`) {#layout}
 
-## Layout {#layout}
-
-```jsonc
-"layout": {
-  "spa": true,                  // (default: true) SPA navigation — instant page transitions
-  "header": {
-    "enabled": true
-  },
-  "sidebar": {
-    "collapsible": true,        // (default: true) Allow sidebar sections to collapse
-    "defaultCollapsed": false   // (default: false) Start collapsed
-  },
-  "optionsMenu": {
-    "position": "header",       // "header" or "sidebar"
-    "components": {
-      "search": true,           // Show search button
-      "themeSwitch": true,      // Show dark/light mode toggle
+```jsonc "docmd.config.json"
+{
+  "layout": {
+    "spa": true,                  // Instant client-side SPA routing (default: true)
+    "titleSeparator": "-",        // Delimiter between page title and site title (formatted as " - ")
+    "titleAppend": true,          // Append site title to <title> (can override per-page in frontmatter)
+    "focusMode": false,           // Enable distraction-free Zen Mode toggle & Alt+F shortcut
+    "print": false,               // Show Print button in article action bar & Focus Mode toolbar
+    "copyCode": true,             // Show Copy button on fenced code blocks
+    "pageNavigation": true,       // Show Previous / Next page links at bottom of articles
+    "breadcrumbs": true,          // Show hierarchical breadcrumbs above article title
+    "copyWidgets": {
+      "enabled": true,            // Action bar above article content
+      "raw": true,                // "Copy Markdown" button
+      "context": true             // "Copy Context" button (formatted for LLMs)
+    },
+    "header": {
+      "enabled": true
+    },
+    "sidebar": {
+      "collapsible": true,
+      "defaultCollapsed": false
+    },
+    "optionsMenu": {
+      "position": "header",       // "header" | "sidebar-top" | "sidebar-bottom"
+      "components": {
+        "search": true,
+        "themeSwitch": true,
+        "focusMode": true,
+        "sponsor": "https://github.com/sponsors/docmd-io"
+      }
+    },
+    "footer": {
+      "style": "complete",        // "minimal" | "complete"
+      "content": "© {{ docmd.buildYear }} My Project.",
+      "description": "Documentation built with docmd.",
+      "branding": true,
+      "columns": [
+        {
+          "title": "Resources",
+          "links": [{ "text": "GitHub", "url": "https://github.com/docmd-io/docmd" }]
+        }
+      ]
     }
   }
 }
 ```
 
-## Navigation {#navigation}
+### Multi-Position Banners (`layout.banners` & `layout.banner`) {#banners}
 
-```jsonc
-"navigation": [
-  {
-    "title": "Getting Started",
-    "path": "/getting-started/"
-  },
-  {
-    "title": "API Reference",
-    "children": [
-      { "title": "CLI", "path": "/api/cli/" },
-      { "title": "Configuration", "path": "/api/config/" }
-    ]
-  },
-  {
-    "title": "External Link",
-    "href": "https://github.com",
-    "external": true
-  }
-]
-```
+Configure up to **7 banner positions**. Top/header bars default to `dismissible: true` (`sessionStorage`); sidebar and TOC cards default to persistent (`dismissible: false`):
 
-Internal `path` values should start with `/`. External links use `href` plus `external: true`.
+| Position | Style | Default `dismissible` | Placement |
+|:--|:--|:--|:--|
+| `top` | Bar | `true` | Full-width bar at top of viewport (`layout.banner` is shorthand for `layout.banners.top`) |
+| `header` | Bar | `true` | Bar inside/under the page header |
+| `sidebar-top` | Card | `false` | Compact card pinned to top of left navigation sidebar |
+| `sidebar-bottom` | Card | `false` | Compact card pinned to bottom of left navigation sidebar |
+| `toc-top` | Card | `false` | Compact card pinned to top of right-hand TOC rail |
+| `toc-bottom` | Card | `false` | Compact card pinned to bottom of right-hand TOC rail |
+| `footer` | Bar | `false` | Wide banner directly above the page footer |
 
-## Theme {#theme}
-
-```jsonc
-"theme": {
-  "appearance": "system",  // "light", "dark", or "system" (default: "system")
-  "default": "light",      // Fallback for system
-  "colors": {
-    "primary": "#3b82f6",
-    "background": "#ffffff"
+```jsonc "docmd.config.json"
+{
+  "layout": {
+    "banners": {
+      "top": {
+        "content": "**v{{ docmd.version }} is live!** Explore the new features.",
+        "type": "announcement", // "info" | "success" | "warning" | "danger" | "announcement"
+        "icon": "sparkles",
+        "dismissible": true,    // Aliases: dismissable, closable
+        "link": { "text": "Release Notes", "url": "/release-notes/" }
+      },
+      "toc-top": {
+        "image": "/assets/sponsor.png",
+        "alt": "Sponsor",
+        "content": "**Support open source**",
+        "link": { "text": "Sponsor", "url": "https://github.com/sponsors/docmd-io" }
+      }
+    }
   }
 }
 ```
 
-`appearance: "system"` requires client-side JS to read `prefers-color-scheme`. Use `appearance: "light"` for static exports that won't run JS.
+Suppress banners on a specific page by setting `banner: null` in page frontmatter.
 
-## i18n (Internationalization) {#i18n}
+## Markdown & Security Policies (`markdown`, `security`, `cookieConsent`) {#markdown-and-security}
 
-```jsonc
-"i18n": {
-  "default": "en",
-  "locales": [
-    { "id": "en", "label": "English" },
-    { "id": "de", "label": "Deutsch" }
+```jsonc "docmd.config.json"
+{
+  "markdown": {
+    "breaks": true,                   // Convert single newlines to <br> (set false for 80-col wrapped prose)
+    "linkify": true,                  // Auto-convert bare URLs/domains into links (set false to disable)
+    "typographer": true,              // Smart quotes and dashes (set false to keep verbatim)
+    "linkifyDefaultScheme": "https"   // "https" (default) or "http" for bare-domain autolinks
+  },
+  "security": {
+    "html": "allow",                  // "allow" (default) | "escape" | "strip" (legacy alias: htmlPolicy)
+    "strictLinkSanitizing": true,
+    "allowedIframeHosts": ["youtube.com", "vimeo.com", "codesandbox.io"]
+  },
+  "cookieConsent": {
+    "enabled": true,
+    "message": "We use cookies to improve documentation analytics.",
+    "acceptText": "Accept",
+    "declineText": "Decline",
+    "policyUrl": "/privacy/"
+  }
+}
+```
+
+## Navigation (`navigation` or `navigation.json`) {#navigation}
+
+Navigation can live inline in `docmd.config.json` or in a per-locale/per-version `navigation.json` file:
+
+```jsonc "docmd.config.json"
+{
+  "navigation": [
+    { "title": "Quick Start", "path": "/", "icon": "zap" },
+    {
+      "title": "Guides",
+      "icon": "book-open",
+      "collapsible": true,
+      "children": [
+        { "title": "Installation", "path": "/getting-started/installation" },
+        { "title": "Configuration", "path": "/configuration/overview" }
+      ]
+    },
+    { "title": "GitHub", "href": "https://github.com/docmd-io/docmd", "icon": "github", "external": true }
   ]
 }
 ```
 
-i18n requires locale-named source folders (e.g. `docs/de/`) for the per-locale pages to be generated. Setting `i18n` alone does not produce translated output.
+## Internationalisation (`i18n`) & Versioning (`versions`) {#i18n-and-versions}
 
-## Versions {#versions}
+Built-in UI strings ship for **10 languages**: `en`, `es`, `fr`, `de`, `ja`, `zh`, `hi`, `ko`, `ru`, `tr` (plus automatic `dir="rtl"` on `<html>` for `ar`, `he`, `fa`).
 
-```jsonc
-"versions": [
-  { "id": "v0.8", "label": "v0.8 (latest)", "default": true },
-  { "id": "v0.7", "label": "v0.7" }
-]
-```
-
-Like i18n, `versions` requires versioned source folders (e.g. `docs/v0.8/`, `docs/v0.7/`) for the build to fan out. The label `"v0.8 (latest)"` requires `default: true` on exactly one entry.
-
-## Plugins {#plugins-config}
-
-```jsonc
-"plugins": {
-  "search": {},
-  "git": {
-    "repo": "https://github.com/user/repo"
-  },
-  "seo": {},
-  "llms": {}
-}
-```
-
-See [plugins.md](./plugins.md) for complete plugin configuration.
-
-## Complete Example {#complete-example}
-
-```jsonc
+```jsonc "docmd.config.json"
 {
-  "title": "My Documentation",
-  "description": "Comprehensive guide to my project",
-  "url": "https://docs.example.com",
-  "src": "docs",
-  "out": "site",
-  "base": "/",
-  "favicon": "assets/favicon.ico",
-  
-  "logo": {
-    "light": "assets/logo-dark.png",
-    "dark": "assets/logo-light.png",
-    "href": "/"
+  "i18n": {
+    "default": "en",
+    "locales": [
+      { "id": "en", "label": "English" },
+      { "id": "de", "label": "Deutsch" },
+      { "id": "tr", "label": "Türkçe" }
+    ]
   },
-  
-  "layout": {
-    "spa": true,
-    "sidebar": {
-      "collapsible": true
-    }
-  },
-  
-  "theme": {
-    "appearance": "system"
-  },
-  
-  "navigation": [
-    { "title": "Home", "path": "/" },
-    { "title": "Guide", "path": "/guide/" }
-  ],
-  
-  "plugins": {
-    "search": {},
-    "git": {
-      "repo": "https://github.com/example/project"
-    },
-    "seo": {}
+  "versions": {
+    "current": "v10",
+    "position": "sidebar-top",
+    "all": [
+      { "id": "v10", "dir": "docs/v10", "label": "v0.10 (Latest)" },
+      {
+        "id": "v09",
+        "dir": "docs/v09",
+        "label": "v0.9",
+        "banners": {
+          "top": { "content": "You are viewing v0.9 docs.", "type": "warning", "dismissible": false }
+        }
+      }
+    ]
   }
 }
 ```
 
-## Configuration File Formats {#file-formats}
+## Production Server (`serve`) {#serve-config}
 
-### JSON (Recommended) {#json}
+Used only by `npx @docmd/core serve` (ignored by `build` and `dev`):
 
-```json
+```jsonc "docmd.config.json"
 {
-  "title": "My Docs"
+  "serve": {
+    "host": "127.0.0.1",
+    "port": 3000,
+    "actions": {
+      "enabled": false,
+      "origins": ["https://docs.example.com"],
+      "identityHeader": "x-auth-request-email"
+    },
+    "mcp": {
+      "enabled": false,
+      "origins": []
+    }
+  }
 }
 ```
 
-### JavaScript {#javascript}
+## Legacy Key Auto-Mapping (Backwards Compatibility) {#backwards-compatibility}
 
-```javascript
-export default {
-  title: "My Docs"
-};
-```
-
-### TypeScript {#typescript}
-
-```typescript
-import type { DocmdConfig } from "@docmd/core";
-
-export default {
-  title: "My Docs"
-} satisfies DocmdConfig;
-```
-
-TypeScript config requires `"type": "module"` in `package.json` and a build step (tsc / tsx).
-
-## Environment Variables {#environment-variables}
-
-- `DOCMD_CONFIG` — Override config file path
-- `DOCMD_PORT` — Override default dev server port
-- `DOCMD_OFFLINE` — Force offline mode for builds
-
-Env vars are read at process start, not per-build.
+`normalizeConfig()` automatically maps legacy keys without breaking builds (run `npx @docmd/core migrate --upgrade` to rewrite them in place):
+- `siteTitle` → `title`, `siteUrl` / `baseUrl` → `url`, `srcDir` / `source` → `src`, `outputDir` → `out`
+- Root `customCss` / `customJs` → `theme.customCss` / `theme.customJs`
+- Root `htmlPolicy` or `security.htmlPolicy` → `security.html`
+- Root `focusMode`, `print`, `copyCode`, `pageNavigation` → `layout.*`
 
 ## See Also {#see-also}
 
-- [SKILL.md §5](../SKILL.md#5-quick-config-cheat-sheet) — minimal config + the 6 most common add-ons
-- [SKILL.md §7](../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
-- [cli.md](./cli.md) — CLI flags and exit codes
-- [plugins.md](./plugins.md) — per-plugin config
-- [formatting.md](./formatting.md) — page-level frontmatter pairs with site config
-- [migration.md](./migration.md) — upgrading from older docmd config schemas
+- [variables.md](./variables.md) — `variables` block and `{{ ... }}` interpolation inside config and markdown
+- [plugins.md](./plugins.md) — configuring all 12 built-in and 4 optional plugins
+- [deployment.md](./deployment.md) — `serve`, `static` (`public/`), and hosting providers
+- [cli.md](./cli.md) — CLI flags and environment variables

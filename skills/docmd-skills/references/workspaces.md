@@ -1,189 +1,105 @@
 ---
-description: Multi-project workspace configuration. Use when managing multiple documentation sites from a single repository.
-when_to_use: |
-  Read this file when you are:
-  - Hosting multiple doc sites from a single repo (e.g. main + SDK + CLI)
-  - Adding a project switcher to the UI
-  - Configuring sub-paths per project (`base: "/sdk/"`)
-  - Building/dev'ing all projects at once
-audience: user
+title: Multi-Project Workspaces
+description: Configuring and building multi-project documentation monorepos with docmd.workspace.js, unified navigation, cross-project search, and AI RAG in docmd 0.10.0.
 verified_against:
-  docmd: "0.8.7"
-  tested_on: 2026-06-19
+  docmd: "0.10.0"
+  tested_on: 2026-11-14
 ---
 
-# Workspaces
+# Multi-Project Workspaces (`docmd.workspace.js`)
 
-Workspaces are for multi-project monorepos where one repo publishes several docs sites under different paths. For a single docs site, a regular `docmd.config.json` is sufficient.
+## 1. Overview
 
-Build multiple documentation projects from one repository with shared configuration.
+For monorepos or multi-product documentation portals, `docmd` supports a root **`docmd.workspace.js`** (or `docmd.workspace.ts` / `docmd.workspace.mjs` / `docmd.workspace.json`) file that orchestrates multiple independent `docmd` projects into a single unified documentation site with shared header switching, cross-project search, and unified AI RAG.
 
-## Use Cases {#use-cases}
-
-```
-docs.example.com/        → Main docs
-docs.example.com/sdk/    → SDK reference
-docs.example.com/cli/    → CLI docs
-```
-
-## Structure {#structure}
-
-```
-my-workspace/
-├── assets/              ← Shared assets
-├── main-docs/
-│   ├── docmd.config.json
-│   └── docs/
-├── sdk-docs/
-│   ├── docmd.config.json
-│   └── docs/
-├── docmd.config.json    ← Workspace root
-└── package.json
+```text
+acme-monorepo/
+├── docmd.workspace.js             # Workspace orchestrator
+├── public/                        # Optional workspace-wide root static files
+├── packages/
+│   ├── cli/
+│   │   ├── docmd.config.js
+│   │   └── docs/
+│   ├── sdk/
+│   │   ├── docmd.config.js
+│   │   └── docs/
+│   └── cloud/
+│       ├── docmd.config.js
+│       └── docs/
+└── site/                          # Unified build output
+    ├── index.html                 # Hub landing page or redirect to defaultProject
+    ├── cli/
+    ├── sdk/
+    └── cloud/
 ```
 
-A workspace requires the root `docmd.config.json` to be a workspace config (have a `workspace` key). If the root config looks like a regular project config, docmd treats the whole repo as a single project and ignores the subfolder configs.
+---
 
-## Workspace Configuration {#workspace-config}
-
-Root `docmd.config.json`:
-
-```json
-{
-  "workspace": {
-    "projects": [
-      { "prefix": "/",    "src": "main-docs", "title": "Docs" },
-      { "prefix": "/sdk", "src": "sdk-docs",  "title": "SDK" }
-    ],
-    "switcher": {
-      "enabled": true,
-      "position": "sidebar-top"
-    }
-  },
-  "theme": { "appearance": "system" },
-  "logo": { "light": "assets/logo-dark.svg", "dark": "assets/logo-light.svg" }
-}
-```
-
-Exactly one project must use `prefix: "/"`. If two projects claim root, the build fails.
-
-## Workspace Options {#workspace-options}
-
-| Key | Type | Description |
-|:--|:--|:--|
-| `projects` | Array | Project entries (one must use `prefix: "/"`) |
-| `switcher` | Object | Project switcher UI settings |
-
-## Project Entry {#project-entry}
-
-| Key | Required | Description |
-|:--|:--|:--|
-| `prefix` | Yes | URL prefix (`"/"` for root) |
-| `src` | Yes | Project directory |
-| `title` | — | Display name in switcher |
-
-`prefix` must start with `/`. `/sdk` and `/sdk/` are treated differently: the trailing-slash form is for "directory at root", the no-slash form is for "sub-path under root".
-
-## Project Config {#project-config}
-
-Each project can override root defaults:
-
-`sdk-docs/docmd.config.json`:
-```json
-{
-  "title": "SDK Reference",
-  "navigation": [
-    { "title": "Overview", "path": "/" },
-    { "title": "API", "path": "/api/" }
-  ]
-}
-```
-
-Project-level `title` overrides the root `title` for that project's pages, but the project entry's `title` (in `workspace.projects[].title`) is what the switcher shows.
-
-## Global Cascading {#global-cascading}
-
-Root config keys cascade to all projects:
-- `theme`
-- `logo`
-- `menubar`
-- `plugins` (project-level can override)
-- `layout`
-
-Not all keys cascade. `navigation`, `url`, `out`, `src` are per-project and not cascaded. Setting `navigation` at root has no effect.
-
-## Project Switcher {#project-switcher}
-
-Built-in UI component for switching between projects.
-
-```json
-"switcher": {
-  "enabled": true,
-  "position": "sidebar-top"  // or "sidebar-bottom"
-}
-```
-
-The switcher only shows up if there are two or more projects.
-
-## Building Workspaces {#building-workspaces}
-
-```bash
-# Build all projects
-docmd build
-
-# Dev server for all projects
-docmd dev
-
-# Build specific project
-docmd build --project sdk-docs
-```
-
-`docmd dev` for a workspace starts one dev server per project with a different port for each. If a port is busy, that project's dev server fails to start while others keep running.
-
-## API {#api}
+## 2. `docmd.workspace.js` Configuration
 
 ```javascript
-import { 
-  detectWorkspace, 
-  buildWorkspace, 
-  devWorkspace, 
-  isWorkspace 
-} from '@docmd/core';
+export default {
+  siteTitle: 'Acme Developer Hub',
+  siteUrl: 'https://docs.acme.example.com',
+  out: 'site',
+  defaultProject: 'cli',
 
-const config = await detectWorkspace('./docmd.config.json');
+  // Member projects
+  projects: [
+    {
+      id: 'cli',
+      name: 'Acme CLI',
+      path: './packages/cli',       // Path to directory containing docmd.config.js
+      base: '/cli',                 // Mount subpath in unified output
+      icon: 'terminal',
+      description: 'Command-line interface and automation tools.',
+    },
+    {
+      id: 'sdk',
+      name: 'TypeScript SDK',
+      path: './packages/sdk',
+      base: '/sdk',
+      icon: 'code',
+      description: 'Client libraries for Node.js and browsers.',
+    },
+    {
+      id: 'cloud',
+      name: 'Acme Cloud API',
+      path: './packages/cloud',
+      base: '/cloud',
+      icon: 'cloud',
+      description: 'Managed control plane and REST API.',
+    },
+  ],
 
-if (isWorkspace(config)) {
-  await buildWorkspace(config, { quiet: false });
-}
+  // Optional hub landing page (or omit to redirect / → defaultProject)
+  hub: {
+    enabled: true,
+    title: 'Acme Documentation Portal',
+    description: 'Everything you need to build with Acme.',
+  },
+
+  // Shared theme and plugin overrides applied across all member projects
+  theme: {
+    name: 'default',
+    appearance: 'system',
+  },
+};
 ```
 
-`detectWorkspace` returns `null` for non-workspace configs; null-check before calling `isWorkspace`.
+---
 
-`devWorkspace` runs multiple dev servers concurrently. There is no graceful shutdown across them — use `docmd stop` to clean up.
+## 3. Workspace Build & Runtime Features (`v0.10.0`)
 
-## Deployment {#deployment}
+1. **Unified Pre-Flight Dependency Resolution**: Before building member projects, `docmd` scans all member configs and installs any missing optional plugins, templates, or engines in a single workspace-wide batch.
+2. **Cross-Project Search & AI RAG**: Each project emits its own `_docmd-search/search-index.json` under its mount path, and the root workspace aggregates search and `@docmd/plugin-ai` RAG context across all member projects.
+3. **Workspace-Aware OpenAPI Resolution**: `@docmd/plugin-openapi` resolves external spec paths relative to the member project directory first, falling back to the workspace root.
+4. **Programmatic Workspace API**:
+   ```javascript
+   import { detectWorkspace, isWorkspace, buildWorkspace } from '@docmd/core';
 
-Each project outputs to its own directory:
-
-```
-site/           ← Root project
-site/sdk/       ← SDK project
-site/cli/       ← CLI project
-```
-
-Configure base paths for subdirectory hosting:
-
-SDK project:
-```json
-{
-  "base": "/sdk/"
-}
-```
-
-The `base` in project config must match the `prefix` in the workspace project entry. If they diverge, internal asset links break.
-
-## See Also {#see-also}
-
-- [SKILL.md §7](../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
-- [config.md](./config.md) — full config schema, including `base`, `url`, and per-project overrides
-- [deployment.md](./deployment.md) — multi-project deployment topology
-- [api.md](./api.md) — `detectWorkspace`, `buildWorkspace`, `isWorkspace` signatures
+   const wsPath = await detectWorkspace(process.cwd());
+   if (wsPath && isWorkspace(wsPath)) {
+     await buildWorkspace({ cwd: process.cwd() });
+   }
+   ```

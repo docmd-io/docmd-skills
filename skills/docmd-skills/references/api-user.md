@@ -1,175 +1,161 @@
 ---
-description: Programmatic build API for docmd — Node.js build/live functions, browser isomorphic compile, MCP server, and SPA client-side events. Use when integrating docmd into Node scripts or browser code as a user.
-when_to_use: |
-  Read this file when you are:
-  - Calling docmd programmatically from Node (build, dev, workspace orchestration)
-  - Embedding the docmd Live Editor / compile engine in a browser
-  - Listening for SPA client-side events to wire third-party scripts
-  - Connecting an MCP-aware host to the docmd docs site
-
-  For plugin-author internals (`@docmd/api` package, URL utilities, action dispatcher, source tools, engine loader), see **api-dev.md** in the docmd-dev skill.
-audience: user
+title: Programmatic API, Browser Globals & MCP Server
+description: User-facing reference for @docmd/core programmatic functions, window.docmd browser APIs, @docmd/live compilation, and the 6 MCP server tools (stdio and HTTP) in docmd 0.10.0.
 verified_against:
-  docmd: "0.8.7"
-  tested_on: 2026-06-19
+  docmd: "0.10.0"
+  tested_on: 2026-11-14
 ---
 
-# API Reference (User)
+# Programmatic API, Browser Globals & MCP Server
 
-Use this when calling docmd from your own code as a **user of the tool**. If you're writing a docmd plugin, custom template, or modifying the engine itself, load **api-dev.md** from the docmd-dev skill instead.
+> **Plugin & Template Authors:** For internal hook contracts (`loadPlugins`, `resolveTemplate`, `createActionDispatcher`, `runPluginDoctorChecks`, and Rust/Python engine wrappers), switch to the sibling skill **`docmd-dev`** (`skills/docmd-dev/references/api-dev.md`).
 
-Prefer `@docmd/api` over `@docmd/core` for type-only or utility imports. They are re-exported from `core`, but `api` has the focused surface that tree-shakes cleanly.
+---
 
-Full docs:
-* Node API - https://docs.docmd.io/reference/build-api/
-* Browser API - https://docs.docmd.io/reference/browser-api/
-* Client Events - https://docs.docmd.io/reference/client-side-events/
-
-## Node.js Build API (`@docmd/core`) {#node-build-api}
-
-### buildSite {#buildsite}
-
-Build static site — same as `docmd build`.
-
-```javascript
-import { buildSite } from "@docmd/core";
-
-await buildSite("./docmd.config.json", {
-  isDev: false,      // true = dev mode (no minification, enables HMR assets)
-  offline: false,    // true = rewrite links to .html for file:// browsing
-  zeroConfig: false  // true = skip config file, auto-detect everything
-});
-```
-
-`isDev: true` does not start a dev server — it sets build-time flags only. For a live dev server, use `buildLive` or shell out to `docmd dev`.
-
-### buildLive {#buildlive}
-
-Generate browser-based Live Editor bundle.
-
-```javascript
-import { buildLive } from "@docmd/core";
-
-await buildLive({
-  serve: false,  // Start dev server
-  port: 3000     // Server port
-});
-```
-
-`buildLive` defaults to `serve: false`, which only generates the bundle. Set `serve: true` to actually open it.
-
-### Workspace Functions {#workspace-functions}
+## 1. `@docmd/core` Programmatic Node.js API
 
 ```javascript
 import {
+  defineConfig,
+  build,
+  buildSite,
+  dev,
+  serve,
+  buildLive,
   detectWorkspace,
   buildWorkspace,
-  devWorkspace,
-  isWorkspace
-} from "@docmd/core";
+  isWorkspace,
+} from '@docmd/core';
 
-// Detect if config is a workspace config
-const config = await detectWorkspace("./docmd.config.json");
-// Returns null if not a workspace, or normalised WorkspaceRootConfig
+// 1. Build static documentation site
+await build({
+  config: './docmd.config.js',
+  offline: false,
+  strict: true,
+});
 
-if (isWorkspace(config)) {
-  // Build all projects in workspace
-  await buildWorkspace(config, { quiet: false });
+// 2. Start live development server with HMR
+await dev({
+  config: './docmd.config.js',
+  port: 3000,
+  host: '127.0.0.1',
+  open: false,
+});
 
-  // Or start dev server for all projects
-  await devWorkspace(config, { quiet: false });
+// 3. Start production HTTP server (v0.10.0)
+await serve({
+  config: './docmd.config.js',
+  port: 4173,
+  host: '0.0.0.0',
+  build: false,
+  open: false,
+});
+```
+
+---
+
+## 2. Client-Side Browser Globals (`window.docmd`)
+
+On every compiled page, `docmd` exposes a lightweight runtime object on `window.docmd`:
+
+### Reactive Variables (`window.docmd.var`)
+
+Available whenever `variables.dynamic` is enabled or `{{ user.* }}` tokens are used on the page (see [Variables & Personalisation](./variables.md)):
+
+```javascript
+// Read a dynamic variable
+const apiKey = window.docmd.var.get('user.apiKey');
+
+// Update a variable (persists to localStorage and updates all DOM bindings & copy buttons)
+window.docmd.var.set('user.apiKey', 'sk_live_987654');
+
+// List all current dynamic variables as a key-value object
+const allVars = window.docmd.var.list();
+
+// Re-hydrate the current DOM after custom client-side mutations
+window.docmd.var.sync();
+```
+
+### Live Server Bridge (`window.docmd.call` / `isLive` / `ping`)
+
+Available when Live Server Actions are active (`docmd dev` or `docmd serve` with `serve.actions.enabled: true`):
+
+```javascript
+if (window.docmd?.isLive?.()) {
+  const ok = await window.docmd.ping();
+  const result = await window.docmd.call('threads:list', { page: location.pathname });
 }
 ```
 
-`detectWorkspace` returns `null` for non-workspace configs; always null-check before passing to `isWorkspace`.
+### Browser DOM Events & `postMessage`
 
-## Browser API {#browser-api}
+| Event / Message | Direction | Payload / Detail | Description |
+|-----------------|-----------|------------------|-------------|
+| `docmd:page-mounted` | `document` CustomEvent | `{ url }` | Fired after initial load and after every SPA client-side navigation |
+| `docmd:variable-change` | `window` CustomEvent | `{ key, value }` | Fired whenever `window.docmd.var.set()` updates a dynamic variable |
+| `docmd:set-variables` | `window.postMessage` | `{ type: 'docmd:set-variables', variables: { ... } }` | Inject multiple `user.*` variables from a parent dashboard or auth wrapper |
 
-### Isomorphic Compile Engine {#isomorphic-compile-engine}
+---
 
-The same engine that builds static sites can run in the browser:
+## 3. Browser Live Compiler (`@docmd/live`)
 
-```html
-<link rel="stylesheet" href="https://unpkg.com/@docmd/ui/assets/css/docmd-main.css">
-<script src="https://unpkg.com/@docmd/live/dist/docmd-live.js"></script>
-```
-
-```javascript
-// Compile raw markdown → full HTML document string
-const html = await docmd.compile(markdownString, {
-  title: "Preview",
-  theme: { appearance: "light" }
-});
-
-iframe.srcdoc = html;  // Render in iframe for style isolation
-```
-
-Browser mode has no filesystem access. `navigation` and any source content must be passed explicitly. Node-only plugins (sitemap, LLMs generation) are auto-disabled.
-
-Limitations:
-- No filesystem access in browser
-- Provide `navigation` array explicitly
-- Node-only plugins (sitemap, LLMs) disabled
-
-## SPA Client-Side Events {#spa-client-side-events}
-
-docmd uses an SPA router — `DOMContentLoaded` won't re-fire on navigation.
+Compile `docmd` Markdown + custom containers directly in the browser or in a Node.js preview script:
 
 ```javascript
-document.addEventListener("docmd:page-mounted", (event) => {
-  const { url } = event.detail;  // Absolute URL of newly mounted page
-  // Re-init third-party libraries here
+import { compile } from '@docmd/live';
+
+const html = compile(`
+::: callout tip "Live Preview"
+Compiled directly in memory!
+::: /callout
+`, {
+  siteTitle: 'Preview',
 });
 ```
 
-Third-party libraries that initialize on `DOMContentLoaded` (analytics widgets, syntax highlighters, comment widgets) only run on the first page load. Listen for `docmd:page-mounted` to re-init on subsequent navigations.
+Also available via the standalone IIFE script generated by `docmd live --build-only` (`dist/docmd-live.js` → `window.docmd.compile(markdown, config)`).
 
-## MCP Server {#mcp-server}
+---
 
-Full coverage lives in [SKILL.md §4](../SKILL.md#4-mcp-server). The summary table:
+## 4. Model Context Protocol (MCP) Server (`docmd mcp` & `POST /mcp`)
 
-| Tool | Input | Output |
-|:--|:--|:--|
-| `search_docs` | `{ query: string }` | File/line matches with context |
-| `read_doc` | `{ route: string }` | Raw markdown content |
-| `validate_docs` | `{}` | Pass/fail text |
-| `get_llms_context` | `{}` | Full `llms-full.txt` body |
+`docmd 0.10.0` includes a built-in Model Context Protocol server (`@docmd/mcp`) that exposes your documentation project to AI assistants (Claude Desktop, Claude Code, Cursor, Windsurf, VS Code Copilot, Zed) over **two transports**:
 
-Errors come back as `content[].text` strings, not JSON-RPC error objects. Parse the text to detect failure: the string starts with `Error: ...` for known error cases.
+1. **Local `stdio` Transport**: `npx @docmd/core mcp` (TUI banner is automatically suppressed on `stdout` for clean JSON-RPC framing).
+2. **Stateless HTTP Transport (`POST /mcp`)**: Served by `docmd serve` when `serve.mcp.enabled: true` is set in `docmd.config.js`.
 
-Full docs: MCP Server - https://docs.docmd.io/reference/mcp-server/
+### The 6 MCP Tools
 
-### Client Configuration {#mcp-client-config}
+| Tool Name | Arguments | Description |
+|-----------|-----------|-------------|
+| `search_docs` | `{ query: string, limit?: number }` | Hybrid keyword/heading search across all documentation pages |
+| `list_docs` | `{ subdir?: string }` | Lists all Markdown/MDX files and routes (honours `config.exclude` and `.gitignore`) |
+| `read_doc` | `{ route: string }` | Reads the full Markdown/MDX content and frontmatter of a page (path-traversal hardened within `src`) |
+| `get_config` | `{}` | Returns the resolved `docmd.config.js` structure and navigation tree |
+| `validate_docs` | `{}` | Runs the link, asset, and frontmatter validator and returns structured diagnostics |
+| `get_llms_context` | `{ full?: boolean }` | Returns the compiled `llms.txt` index or `llms-full.txt` corpus on demand |
 
-Claude Desktop (`claude_desktop_config.json`):
+### IDE Configuration (`stdio`)
+
+#### Claude Desktop / Cursor / Windsurf (`mcp.json`)
+
 ```json
 {
   "mcpServers": {
-    "docmd": {
+    "my-docs": {
       "command": "npx",
-      "args": ["--yes", "@docmd/core", "mcp"],
-      "cwd": "/path/to/project"
+      "args": ["-y", "@docmd/core", "mcp", "--config", "/absolute/path/to/docmd.config.js"]
     }
   }
 }
 ```
 
-Cursor / Windsurf:
-```json
-{
-  "command": "npx --yes @docmd/core mcp",
-  "transport": "stdio"
-}
+#### Claude Code (`stdio` or `http`)
+
+```bash
+# Local stdio server
+claude mcp add my-docs -- npx -y @docmd/core mcp
+
+# Remote HTTP server (hosted via docmd serve with serve.mcp.enabled: true)
+claude mcp add --transport http my-docs https://docs.example.com/mcp
 ```
-
-### Security {#mcp-security}
-
-- Local only — no network ports, no external connections
-- File access sandboxed to project root
-- No telemetry
-
-## See Also {#see-also}
-
-- [SKILL.md §4](../SKILL.md#4-mcp-server) — full MCP section with handshake sequence
-- [SKILL.md §7](../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
-- **api-dev.md** (in the docmd-dev skill) — for plugin-author internals (`@docmd/api`, URL utilities, action dispatcher, engine loader, types)

@@ -1,317 +1,275 @@
 ---
-description: Guide to building custom plugins for docmd. Use when creating or modifying docmd plugins.
+description: Guide to building custom plugins for docmd. Covers the runtime PluginDescriptor, package.json#docmd manifest namespace, ESM exports, 14 capabilities (including server, doctor, and template), requiresLiveServer, conditional assets, production action host (docmd serve), and resolvedAssets.
 when_to_use: |
   Read this file when you are:
-  - Writing a new docmd plugin from scratch
-  - Picking the right capability for the hook you need
-  - Implementing action/event handlers for the Live Editor (WebSocket RPC)
-  - Publishing a community plugin (`docmd-plugin-*` prefix)
+  - Writing a new docmd plugin from scratch or updating an official `@docmd/plugin-*` package
+  - Adding the required `package.json#docmd` manifest namespace and `exports["."].default` condition
+  - Picking the right capability for the hook you need (`server`, `doctor`, `actions`, `assets`, etc.)
+  - Implementing conditional asset loading (`AssetCondition`) so pages without your feature pay 0 KB overhead
+  - Implementing action/event handlers that work in both `docmd dev` and `docmd serve` (`ctx.mode`, `ctx.caller.identity`)
 audience: dev
 verified_against:
-  docmd: "0.8.7"
-  tested_on: 2026-06-19
+  docmd: "0.10.0"
+  tested_on: 2026-11-14
 ---
 
 # Plugin Development
 
 Full docs:
-* Building Plugins - https://docs.docmd.io/development/building-plugins/
-* Plugin Usage - https://docs.docmd.io/plugins/usage
+* Building Plugins — https://docs.docmd.io/development/building-plugins
+* Plugin Examples — https://docs.docmd.io/development/plugin-examples
+* Plugin Usage — https://docs.docmd.io/plugins/usage
 
-## Plugin Structure {#plugin-structure}
+## 1. Plugin Descriptor (Runtime) {#plugin-structure}
 
-Every plugin must export a `plugin` descriptor — plugins without it are rejected at load time.
+Every plugin must export a `plugin` descriptor — plugins without a valid descriptor are rejected at load time.
 
 ```javascript
 export default {
   plugin: {
-    name: "my-plugin",           // Unique identifier
-    version: "1.0.0",
-    capabilities: ["head", "build", "post-build"]  // Declares which hooks this plugin uses
+    name: 'my-plugin',                              // Unique identifier
+    version: '1.0.0',                               // Valid semver string
+    capabilities: ['head', 'build', 'post-build'],  // Strict allowlist of hook categories used
+    requiresLiveServer: false                       // Optional: true if client assets need dev/serve RPC
   },
   // ... hooks
 };
 ```
 
-Naming convention: community plugins should prefix with `docmd-plugin-`.
+Naming conventions:
+- Official plugins live in `packages/plugins/<name>/` and publish as `@docmd/plugin-<name>` (configured via shorthand `"<name>"`).
+- Community plugins should prefix with `docmd-plugin-` and are configured in `docmd.config.json` by their **full npm package name** (there is no alias system for third-party plugins, preventing supply-chain confusion).
 
-## Capabilities → Hooks {#capabilities}
+## 2. The `package.json#docmd` Manifest Namespace & ESM Exports {#manifest-namespace}
 
-| Capability | Hooks | Phase |
-|:--|:--|:--|
-| `init` | `onConfigResolved` | Init — modify config after load |
-| `markdown` | `markdownSetup` | Setup — extend markdown-it parser |
+Every official plugin, template, and engine in the monorepo **must** declare a `docmd` block in its `package.json` (introduced in 0.8.9, single source of truth in 0.9.0+ replacing the legacy `plugins.json`). The build-time registry generator reads this block during `pnpm build` of `@docmd/api` and cross-checks that `docmd.capabilities` matches the runtime `PluginDescriptor.capabilities`.
+
+```json "package.json"
+{
+  "name": "@docmd/plugin-foo",
+  "version": "0.10.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "docmd": {
+    "key": "foo",
+    "kind": "plugin",
+    "displayName": "Foo",
+    "tagline": "One-line summary shown in catalogues and docmd doctor",
+    "capabilities": ["head", "build", "post-build", "doctor"],
+    "requiresLiveServer": false
+  }
+}
+```
+
+- **ESM `exports["."].default` is mandatory**: Always include `"default": "./dist/index.js"` alongside `"import"`. Without `"default"`, Node's CJS resolver throws `ERR_PACKAGE_PATH_NOT_EXPORTED` on the auto-installer's first resolution pass.
+- **`requiresLiveServer: true`**: Use this for interactive plugins that rely on the WebSocket RPC bridge (like `@docmd/plugin-threads`). During static `docmd build`, docmd automatically omits the plugin's client assets (`getAssets`, `generateScripts`, `generateMetaTags`) while keeping `markdownSetup` active so containers still parse cleanly. Under `docmd dev` (and `docmd serve` with `serve.actions.enabled: true`), client assets are included. Users can override per-site with `devOnly: false` / `liveOnly: false`.
+
+## 3. Capabilities → Hooks (14 Capabilities) {#capabilities}
+
+Capabilities are a **strict allowlist**. Implementing a hook without declaring its capability in `plugin.capabilities` causes the hook to be ignored (and triggers a build-time registry warning in the monorepo).
+
+| Capability | Allowed Hooks | Phase |
+|:--|:---|:--|
+| `init` | `onConfigResolved` | Init — read/modify normalised config after load |
+| `markdown` | `markdownSetup` | Setup — extend `markdown-it` parser (synchronous) |
 | `head` | `generateMetaTags`, `generateScripts` (head) | Render — inject into `<head>` |
 | `body` | `generateScripts` (body) | Render — inject before `</body>` |
-| `build` | `onBeforeParse`, `onAfterParse`, `onBeforeBuild`, `onBeforeRender`, `onPageReady` | Build — transform content |
-| `post-build` | `onPostBuild` | Post-Build — run after all HTML generated |
-| `dev` | `onDevServerReady` | Dev Server — access raw Node.js server |
-| `assets` | `getAssets` | Output — copy/link external files |
-| `actions` | `actions` | Interactive — WebSocket RPC handlers (dev only) |
-| `events` | `events` | Interactive — fire-and-forget handlers (dev only) |
-| `translations` | `translations` | i18n — return locale strings |
+| `build` | `onBeforeParse`, `onAfterParse`, `onBeforeBuild`, `onBeforeRender`, `onPageReady` | Build — transform content and page metadata |
+| `post-build` | `onPostBuild` | Post-Build — run after all HTML and `resolvedAssets` are ready |
+| `dev` | `onDevServerReady` | Dev Server — access raw Node HTTP server & `wss` (`docmd dev` only) |
+| `server` | `onServerReady` | Server Host — receive `ServerHandle` in both `docmd dev` and `docmd serve` |
+| `assets` | `getAssets` | Output — copy local files or inject `<link>`/`<script>` with optional `condition` |
+| `actions` | `actions` | Interactive — WebSocket RPC handlers (`dev` + `serve` with `serve.actions`) |
+| `events` | `events` | Interactive — fire-and-forget handlers (`dev` + `serve` with `serve.actions`) |
+| `translations` | `translations` | i18n — return locale UI strings map |
+| `template` | `templates`, `templateAssets` | Render — **exclusive** to template packages (cannot combine with other capabilities) |
+| `doctor` | `onDoctorCheck` | Diagnostics — run custom health checks during `docmd doctor` |
 
-Capabilities are a strict allowlist, not a hint. Declaring `capabilities: ["build"]` and writing an `onPostBuild` hook means the post-build hook is silently never called. Add `post-build` to the array.
-
-## Hook Signatures {#hook-signatures}
+## 4. Hook Signatures {#hook-signatures}
 
 ### Init & Setup {#init-setup}
 
-`onConfigResolved(config)` — Modify config after loading
 ```javascript
+// capability: 'init'
 onConfigResolved: async (config) => {
-  config.title = config.title || "My Docs";
-  return config;
+  config.title = config.title || 'My Docs';
+},
+
+// capability: 'markdown' (synchronous only!)
+markdownSetup: (md, pluginOptions) => {
+  md.use(myMarkdownItPlugin, pluginOptions);
 }
 ```
 
-`markdownSetup(md, opts)` — Extend markdown-it instance (synchronous only)
+### Build Phase (`capability: 'build'`) {#build-phase}
+
 ```javascript
-markdownSetup: (md, opts) => {
-  md.use(require('markdown-it-emoji'));
-}
-```
-
-`markdownSetup` is synchronous only; returning a Promise has no effect.
-
-### Build Phase {#build-phase}
-
-`onBeforeParse(src, frontmatter, filePath?)` → return modified markdown
-```javascript
+// Modify raw markdown string before parsing
 onBeforeParse: async (src, frontmatter, filePath) => {
-  return src.replace(/\{\{version\}\}/g, 'v2.0.0');
-}
-```
+  return src;
+},
 
-`onAfterParse(html, frontmatter, filePath?)` → return modified HTML
-```javascript
+// Modify rendered markdown HTML body before template wrapping
 onAfterParse: async (html, frontmatter, filePath) => {
-  return html.replace(/<pre>/g, '<pre class="highlight">');
-}
-```
+  return html;
+},
 
-`onBeforeBuild({ pages, tui })` — Heavy data fetching/indexing
-```javascript
-onBeforeBuild: async ({ pages, tui }) => {
-  tui.step("Indexing content...");
-  for (const page of pages) {
-    // Process pages
-  }
-}
-```
+// Heavy pre-computation / indexing across all parsed pages before HTML rendering
+onBeforeBuild: async ({ config, pages, tui, options, runWorkerTask }) => {
+  tui.step('Indexing content', 'WAIT');
+  // ... process pages ...
+  tui.step('Indexing content', 'DONE');
+},
 
-`onBeforeRender(page)` — Mutate `page.frontmatter` or `page.html`
-```javascript
+// Mutate page.frontmatter or page.html in-place before EJS template runs
 onBeforeRender: async (page) => {
   page.frontmatter.wordCount = page.html.split(/\s+/).length;
-}
-```
+},
 
-`onBeforeRender` mutates `page` in place. The return value is ignored, unlike `onBeforeParse` / `onAfterParse` which return a new value.
-
-`onPageReady(page)` — Access final page before write
-```javascript
+// Inspect fully assembled page object right before disk write
 onPageReady: async (page) => {
-  console.log(`Built: ${page.sourcePath}`);
+  // page.outputPath, page.urls, etc.
 }
 ```
 
-### Head & Body Injection {#head-body-injection}
+### Head, Body & Conditional Assets (`head`, `body`, `assets`) {#assets-and-injection}
 
-`generateMetaTags(config, page, relativePathToRoot)` → return HTML string
+Prefer `getAssets()` with `condition` over unconditional script injection so pages that do not use your plugin's syntax load **0 KB** of extra CSS/JS (used by `@docmd/plugin-playground`, `@docmd/plugin-mermaid`, `@docmd/plugin-math`):
+
 ```javascript
-generateMetaTags: async (config, page) => {
-  return `<meta name="author" content="My Team">`;
-}
-```
-
-`generateScripts(config, opts)` → return `{ headScriptsHtml, bodyScriptsHtml }`
-```javascript
-generateScripts: async (config, opts) => {
-  return {
-    headScriptsHtml: '<script src="https://cdn.example.com/lib.js"></script>',
-    bodyScriptsHtml: '<script>console.log("loaded");</script>'
-  };
-}
-```
-
-### Post-Build {#post-build}
-
-`onPostBuild({ config, pages, outputDir, log, options })` — Post-generation tasks
-```javascript
-onPostBuild: async ({ pages, log }) => {
-  log(`Verified ${pages.length} pages.`);
-}
-```
-
-The `log` function is a scoped logger; output goes to the build log with the plugin's name prefix.
-
-### Assets {#assets}
-
-`getAssets(opts)` → return array of assets
-```javascript
-getAssets: (opts) => [
-  { url: "https://cdn.example.com/lib.js", type: "js", location: "head" },
-  { src: path.join(__dirname, "custom.css"), dest: "assets/css/custom.css", type: "css", location: "head" }
+// capability: 'assets'
+getAssets: (pluginOptions) => [
+  {
+    path: path.join(__dirname, 'assets/my-plugin.css'),
+    url: 'assets/css/my-plugin.css',
+    type: 'css',
+    position: 'head',
+    priority: 20,
+    condition: {
+      pageHtmlMatches: ['class="my-widget"', 'data-my-widget'],
+      // or frontmatterHas: 'myPlugin'
+    }
+  },
+  {
+    path: path.join(__dirname, 'assets/my-plugin.js'),
+    url: 'assets/js/my-plugin.js',
+    type: 'js',
+    position: 'body',
+    priority: 20,
+    attributes: { defer: true },
+    condition: { pageHtmlMatches: 'class="my-widget"' }
+  }
 ]
 ```
 
-`getAssets` runs once per build, not once per page.
+For per-page dynamic tags or inline config scripts:
 
-### Dev Server {#dev-server}
-
-`onDevServerReady(server, wss)` — Access raw Node.js server
 ```javascript
-onDevServerReady: async (server, wss) => {
-  wss.on('connection', (ws) => {
-    ws.on('message', (msg) => {
-      // Handle message
-    });
-  });
+// capability: 'head'
+generateMetaTags: async (config, page, relativePathToRoot) => {
+  return `<meta name="x-page-slug" content="${page.urls?.slug || ''}">`;
+},
+
+// capability: 'head' and/or 'body'
+generateScripts: (config, options) => ({
+  headScriptsHtml: '',
+  bodyScriptsHtml: '<script>window.__MY_PLUGIN__ = true;</script>'
+})
+```
+
+### Post-Build & `resolvedAssets` (`capability: 'post-build'`) {#post-build}
+
+`onPostBuild` receives an immutable, deeply frozen `resolvedAssets` array (`readonly ResolvedAsset[]`) representing all plugin and template asset declarations resolved for the build:
+
+```javascript
+// capability: 'post-build'
+onPostBuild: async ({ config, pages, outputDir, resolvedAssets, tui, log, options, runWorkerTask }) => {
+  log(`Verified ${pages.length} pages and ${resolvedAssets.length} declared assets.`);
 }
 ```
 
-`onDevServerReady` is only called during `docmd dev`, not during `docmd build`.
+### Server Lifecycle & Production Actions (`server`, `actions`, `events`) {#server-and-actions}
 
-### Interactive (Dev Only) {#interactive}
+In v0.10.0, plugin actions run in both `docmd dev` and `docmd serve` (when `serve.actions.enabled: true`).
 
-`actions` — WebSocket RPC handlers
 ```javascript
+// capability: 'server'
+onServerReady: async (handle) => {
+  // handle.mode: 'dev' | 'serve'
+  // handle.projectRoot, handle.config
+  // handle.rebuild(files?), handle.broadcast(event, data)
+  const timer = setInterval(() => handle.rebuild(), 60_000);
+  handle.onShutdown(() => clearInterval(timer));
+},
+
+// capability: 'actions'
 actions: {
-  "my-plugin:save": async (payload, ctx) => {
+  'my-plugin:save-note': async (payload, ctx) => {
+    // Under `serve`, ctx.caller.identity holds the value of `serve.actions.identityHeader`.
+    // In `dev`, ctx.caller.identity is always null.
+    const author = ctx.caller.identity || (ctx.mode === 'dev' ? 'local' : null);
+    if (!author) throw new Error('Authentication required to save notes');
+
     const content = await ctx.readFile(payload.file);
-    await ctx.writeFile(payload.file, content + "\n" + payload.note);
+    await ctx.writeFile(payload.file, `${content}\n\n> Note by ${author}: ${payload.note}`);
+    // Note: ctx.writeFile automatically triggers a rebuild in both dev and serve!
+    // Use ctx.requestRebuild(files) only if you modified files outside ctx.writeFile.
     return { saved: true };
   }
-}
-```
+},
 
-`events` — Fire-and-forget handlers
-```javascript
+// capability: 'events'
 events: {
-  "my-plugin:analytics": async (payload, ctx) => {
-    console.log("Page view:", payload.path);
+  'my-plugin:viewed': (data, ctx) => {
+    // Fire-and-forget handler
   }
 }
 ```
 
-Action names must be namespaced (`my-plugin:save`, not just `save`).
+> **Security contract under `docmd serve`:** `ctx.writeFile` and `ctx.source` automatically reject writes when `ctx.caller.identity` is `null`. Never bypass `ctx.writeFile` with raw `fs.writeFile` on untrusted paths or unauthenticated callers.
 
-### Translations {#translations}
+### Doctor Diagnostics (`capability: 'doctor'`) {#doctor-check}
 
-`translations(localeId)` → return locale strings
-```javascript
-translations: (localeId) => {
-  const strings = {
-    en: { search: "Search", nav: "Navigation" },
-    de: { search: "Suchen", nav: "Navigation" }
-  };
-  return strings[localeId] || strings.en;
-}
-```
-
-## PageContext {#pagecontext}
-
-Available in build hooks:
-
-```typescript
-interface PageContext {
-  sourcePath: string;              // Absolute path to source .md file
-  frontmatter: Record<string, any>; // Parsed YAML frontmatter (mutable)
-  html: string;                     // Rendered HTML body (mutable)
-  localeId?: string;                // Current locale (e.g. "en", "de")
-  versionId?: string;               // Current version (e.g. "v0.8")
-  relativePathToRoot?: string;      // Relative path back to site root
-  urls: {
-    slug: string;                   // 'guide/'
-    pathname: string;               // '/guide/'
-    canonical?: string;             // 'https://docs.example.com/guide/'
-  };
-  runWorkerTask<T>(module: string, fn: string, args: any[]): Promise<T>;
-}
-```
-
-## ActionContext {#actioncontext}
-
-Available in `actions` and `events`:
-
-```typescript
-interface ActionContext {
-  readFile(path: string): Promise<string>;
-  writeFile(path: string, content: string): Promise<void>;
-  readFileLines(path: string): Promise<string[]>;
-  broadcast(event: string, data: any): void;
-  runWorkerTask<T>(module: string, fn: string, args: any[]): Promise<T>;
-  source: SourceTools;
-  projectRoot: string;
-  config: DocmdConfig;
-}
-```
-
-`source: SourceTools` is the editor source tools; it is only meaningful inside the Live Editor / dev-mode context.
-
-## Complete Example {#complete-example}
+Plugins can register custom pre-flight checks executed by `npx @docmd/core doctor`:
 
 ```javascript
-import path from 'path';
-
-export default {
-  plugin: {
-    name: "my-plugin",
-    version: "1.0.0",
-    capabilities: ["head", "build", "post-build"]
-  },
-
-  generateMetaTags: async (config, page) =>
-    `<meta name="x-build-id" content="${config._buildHash}">`,
-
-  onBeforeRender: async (page) => {
-    page.frontmatter.wordCount = page.html.split(/\s+/).length;
-  },
-
-  onPostBuild: async ({ pages, log }) => {
-    log(`Verified ${pages.length} pages.`);
+// capability: 'doctor'
+onDoctorCheck: async ({ projectRoot, config, pluginOptions, mode }) => {
+  const results = [];
+  if (!pluginOptions?.apiKey && !process.env.MY_PLUGIN_KEY) {
+    results.push({
+      name: 'my-plugin: credentials',
+      status: 'warn', // 'ok' | 'warn' | 'error'
+      message: 'No API key configured for my-plugin',
+      hint: 'Set MY_PLUGIN_KEY in your environment or plugins["my-plugin"].apiKey in docmd.config.json',
+      fixable: false
+    });
+  } else {
+    results.push({
+      name: 'my-plugin: credentials',
+      status: 'ok',
+      message: 'API key configured'
+    });
   }
-};
-```
-
-Register in `docmd.config.json`:
-
-```jsonc
-{
-  "plugins": {
-    "my-plugin": {}
-  }
+  return results;
 }
 ```
 
-## Best Practices {#best-practices}
+### Scoping on `noStyle` Pages {#nostyle-scope}
 
-1. Always declare capabilities — plugins can only use hooks they declare
-2. Use async/await — hooks may be called concurrently
-3. Keep plugins stateless — engine may re-initialize them
-4. Prefix action names — use `my-plugin:action-name` format
-5. Use `log()` for output — respects user verbosity settings
-6. Handle errors gracefully — broken plugins shouldn't crash builds
-7. Use worker tasks — offload CPU-intensive work
-8. Test in isolation — use `onBeforeBuild` for setup, `onPostBuild` for verification
-
-Plugin errors are caught and logged at runtime; the build does not fail. To confirm a hook is being called, throw inside the hook temporarily and watch the build log.
-
-## Publishing {#publishing}
-
-1. Create npm package with `docmd-plugin-` prefix
-2. Export plugin as default
-3. Include README with configuration options
-4. Add `docmd` keyword in package.json
-5. Test with real docmd project
-
-The `docmd-plugin-` prefix is a convention, not an enforced rule, but it is required for npm discoverability.
+Plugins run on `noStyle: true` landing pages by default. Export `noStyle: false` on your plugin module if its scripts/styles should be skipped on `noStyle` pages unless explicitly opted in via page frontmatter (`plugins: { myPlugin: true }`).
 
 ## See Also {#see-also}
 
-- [SKILL.md §7](../../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
-- **plugins.md** (in the docmd-skills skill) — built-in plugins you can model your plugin afterr
-- [api-dev.md](./api-dev.md) — `loadPlugins`, `createActionDispatcher`, URL utilities
-- **config.md** (in the docmd-skills skill) — how plugins are wired into config
-- [engines.md](./engines.md) — engine boundary, serialization gotchas
+- [api-dev.md](./api-dev.md) — `loadPlugins`, `createActionDispatcher`, `ActionContext`, `ServerHandle`, URL utilities
+- [template-development.md](./template-development.md) — `capabilities: ['template']`
+- [engines.md](./engines.md) — offloading work via `runWorkerTask` and engine helpers
+- [security-and-regression-checklist.md](./security-and-regression-checklist.md) — plugin output-injection and security rules

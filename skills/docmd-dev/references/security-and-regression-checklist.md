@@ -1,129 +1,93 @@
-# docmd Security and Regression Checklist
+---
+description: docmd-specific security and quality gate for framework contributors. Covers container parser invariants, plugin output escaping, docmd serve origin & identityHeader write gating, Playground & MDX sandboxing, MCP path & config.exclude enforcement, gitignore scoping, Docker/deploy hardening, and build-tree hygiene.
+when_to_use: |
+  Load this reference BEFORE declaring any framework change done or reviewing a PR touching:
+  - `packages/core`, `packages/api`, `packages/parser`, `packages/ui`, `packages/tui`, `packages/utils`
+  - `packages/plugins/*`, `packages/engines/*`, `packages/templates/*`, `packages/deployer`, `packages/live`
+  - `docker/` or `tools/`
+audience: dev
+verified_against:
+  docmd: "0.10.0"
+  tested_on: 2026-11-14
+---
 
-> docmd-specific security and quality gate. docmd is Node.js and TypeScript only, so the generic Node rules in the `ai-dev` skill (`references/nodejs-cautions.md` and `references/security-must-checks.md`) ALWAYS apply on top of this file. This reference is the docmd-only layer: invariants that came from real regressions in v0.8.x battle testing (`battle-test-reports/unified-issues.md`).
+# docmd Security and Regression Checklist (v0.10.0 Gate)
+
+> docmd-specific security and quality gate. docmd is Node.js and TypeScript only, so generic Node security rules (`nodejs-cautions.md` and `security-must-checks.md` if `ai-dev` is installed) ALWAYS apply on top of this file. This reference captures the invariants from v0.8.x–v0.10.0 battle tests and security hardening.
 
 ## When to load this reference
 
-- You are changing framework code in `packages/core`, `packages/api`, `packages/parser`, `packages/ui`, `packages/plugins`, `packages/engines`, `packages/templates`, `packages/deployer`, or the Docker image.
-- You are about to declare a framework change "done".
-- You are reviewing a framework PR.
+- You are changing framework code in `packages/core`, `packages/api`, `packages/parser`, `packages/ui`, `packages/tui`, `packages/utils`, `packages/plugins`, `packages/engines`, `packages/templates`, `packages/deployer`, `packages/live`, or `docker/`.
+- You are about to declare a framework change "done" or review a framework PR.
 
-Load it BEFORE the change ships, not after.
-
-## How to use it
-
-- Run the generic Node triage first (`ai-dev` `nodejs-cautions.md` §1.1 grep checklist + `security-must-checks.md` Rules 1 to 7). Those cover CWE-22, 79, 78, 95, 138, 829, 918, 94, exit codes, async, resources, cross-platform.
-- Then run each section below. Every MUST is a blocker. Every SHOULD needs justification in the PR if violated.
-- Report IDs in parentheses trace each rule back to `unified-issues.md` so the origin is auditable.
+Every **MUST** is a release blocker. Every **SHOULD** requires explicit justification if violated.
 
 ---
 
-# 1. Container parser invariants (`:::`)
+## 1. Container parser (`:::`), Variables (`{{ }}`), and MDX invariants (`packages/parser`, `packages/plugins/mdx`)
 
-The `:::` container engine is touched in `packages/parser`. These are the parser bugs that recurred.
+- **MUST.** Depth tracking must be content-aware, not indentation-blind. Opening `::: tag` and explicit closing `::: /tag` (or generic `:::`) must pair by type and depth regardless of inner indentation. (T-F1)
+- **MUST.** Self-closing containers (`::: button`, `::: tag`, `::: embed`, `::: playground src="..." /:::`) and inline tooltips (`::: tip "..." term:"..." ::: /tip`) must not corrupt the outer container depth counter when followed by or omitting a closing fence. (T-F2)
+- **MUST.** Sub-container markers (`::: tab` / `::: /tab`, `::: step` / `::: /step`, `::: log` / `::: /log`) and legacy markers (`== tab`, `1.`) must both resolve deterministically without erasing inner content. (T-F3, T-F4)
+- **MUST.** Trailing `# comments` on container opening and closing lines must be stripped before attribute parsing.
+- **MUST.** Blank lines inside raw HTML blocks (especially on `noStyle: true` pages) must not cause subsequent HTML elements to render as escaped plain text. (#187)
+- **MUST.** Variable interpolation (`{{ var || "fallback" }}`) must honour `\{{ ... }}` escaping, reserve the `docmd.*` namespace strictly for compiler metadata (`docmd.version`, `docmd.buildYear`, `docmd.gitCommit`, `docmd.gitBranch`), and never use `.innerHTML` when hydrating reactive `<span data-docmd-var="...">` tokens in `docmd-runtime.js` — always use `.textContent` to prevent DOM XSS.
+- **MUST.** Relative links targeting non-index folder paths without trailing slashes from deeply nested pages must resolve accurately. (#271)
 
-- **MUST.** Depth tracking must be content-aware, not indentation-blind. A `::: tag` open and its close must pair by type and depth regardless of inner indentation. (T-F1)
-- **MUST.** A self-closing `::: tag :::` followed by a stray `:::` must not corrupt the depth counter. Treat a self-closing tag as both open and close in one step; an extra `:::` must close the next outer level, not panic the counter. (T-F2)
-- **MUST.** A close whose type does not match the current open type must error or warn, never silently re-root the parser to an arbitrary depth. (T-F3)
-- **MUST.** A triple close must not erase content between the matched levels. Close exactly the levels it matches; leave inner content intact. (T-F4)
-- **SHOULD.** Deep nesting (5+ levels of callouts) must not collapse to the outer container. Verify with a fixture that nests callouts, grids, and steps. (T-F5)
-- **Regression test contract.** Add a parser fixture for every new container bug fixed: one input that breaks before the fix, passes after.
+## 2. Plugin system, Registry & Output-Injection Contract (`packages/api`)
 
-# 2. Plugin output-injection contract
+- **MUST.** Every value a plugin returns via `generateMetaTags`, `generateScripts`, `getAssets`, `template` slots, or `translations` is untrusted input. Await async returns before type-checking (`safeCall`), validate return types (warn once per plugin/hook via `warnPluginReturnTypeOnce`, never interpolate `[object Promise]` or `[object Object]` into `<head>`), and escape attributes properly. (D-S4, T-S7)
+- **MUST.** Every official plugin and template must declare a valid `docmd` block in `package.json` (`key`, `kind`, `displayName`, `tagline`, `capabilities`, `requiresLiveServer`) and a `"default"` export condition in `package.json#exports["."]`. The build-time registry generator must verify zero capability drift between `package.json#docmd.capabilities` and runtime `PluginDescriptor.capabilities`.
+- **MUST.** Plugins declaring `requiresLiveServer: true` must have their client assets (`getAssets`, `generateScripts`, `generateMetaTags`) automatically omitted during static `docmd build` (`isDev: false` and `serve.actions` disabled), while keeping `markdownSetup` active so markdown containers still render.
+- **MUST.** Pre-flight runtime dependency installation (`preflightEnsureRuntimeDeps`) must install missing official `@docmd/*` packages and peer dependencies in a **single atomic batch** (preventing npm v7+ tree pruning) and strictly reject non-`@docmd/*` or uncatalogued package names.
+- **MUST.** `PostBuildContext.resolvedAssets` passed to `onPostBuild` must be deeply frozen (`Object.freeze`) so post-build plugins cannot mutate the build's asset manifest.
 
-Plugins return strings that core interpolates into HTML. Those returns are untrusted.
+## 3. Production Server (`docmd serve`), Action Host & MCP Security (`packages/core`, `packages/api`)
 
-- **MUST.** Every value a plugin returns via `generateMetaTags`, `generateScripts`, `getAssets`, `template` slots, or `translations` is user input. Escape it (`escHtml`, `attrEsc`, `JSON.stringify`) before it lands in HTML. Never stringify with template concatenation that turns an object into `[object Object]` in `<head>`. (D-S4, T-S7)
-- **MUST.** `head` and `body` script generation must be distinct, typed returns. A single function that returns one string for both slots is a contract bug: callers cannot place head scripts in head and body scripts in body. (D-H3, D-S5)
-- **MUST.** No legacy escape hatch. A plugin registered without a descriptor must NOT get full access. Validate descriptors and declared capabilities at load time (see `ai-dev` `nodejs-cautions.md` §1.8). (D-S1)
-- **MUST.** A plugin must not be able to override a built-in engine by registration order. Built-ins win unless the user explicitly opts in. (D-H5)
-- **SHOULD.** Validate the shape of plugin `translations` and `actions`/`events` returns before merging. Wrong shapes must be rejected, not silently merged. (D-M1, D-M5)
-- **SHOULD.** Document the context objects passed to `onBeforeRender`, `onPageReady`, `onPostBuild`. `onPageReady` receives a richer page object than `onBeforeRender`; this asymmetry must be documented or normalised. (D-M2, D-M3)
+- **MUST.** `docmd serve` must send standard security headers by default (`Content-Security-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `X-Frame-Options` / frame protections) and expose `GET /healthz` (`503` while initial build runs, `200` with `Cache-Control: no-store` once ready). (#273, #279)
+- **MUST.** Under `docmd serve`, WebSocket action connections (`serve.actions.enabled: true`) must validate the `Origin` header against `serve.actions.origins` (wildcard `*` is forbidden; missing or non-matching `Origin` gets `403`). (#272, #277)
+- **MUST.** Under `docmd serve`, `ctx.writeFile` and `ctx.source` edits must **refuse to run** when `ctx.caller.identity` is `null` (i.e. when `serve.actions.identityHeader` is unset, or `"cookie"`, or missing/empty on the upgrade request). `cookie` and `set-cookie` headers must always be stripped from `ctx.caller.headers`. (#272, #277)
+- **MUST.** MCP over HTTP (`POST /mcp` when `serve.mcp.enabled: true`) must be **read-only** (never write to disk or trigger rebuilds), enforce a 1 MiB body limit, reject methods other than `POST` with `405`, and reject requests carrying an `Origin` header not listed in `serve.mcp.origins` with `403`. (#278)
+- **MUST.** MCP tools (`read_doc`, `list_docs`, `search_docs`, `validate_docs`) over both `stdio` and HTTP must confine file access to markdown files inside configured source roots (`safePath` / realpath check blocking symlink escapes) and **must honour `config.exclude` and `.gitignore`**. (#245, #268)
+- **MUST.** `docmd mcp` over `stdio` must never emit TUI banners or ANSI escape sequences to `stdout` — `stdout` is strictly for JSON-RPC 2.0 frames; logs go to `stderr`. (#260)
 
-# 3. Public Node API honesty (`@docmd/api`, `@docmd/core`)
+## 4. Playground, Live Server & Dev Server Hardening (`packages/plugins/playground`, `packages/core`, `packages/live`)
 
-- **MUST.** Every function documented in the skill or in `docs/` must be exported from the package entry, with the documented signature. Add an `exports` test that imports each documented symbol and calls it with the documented args. (D-H2)
-- **MUST.** Programmatic entry points must honour their arguments. `buildSite(configPath, opts)` must use `configPath`; ignoring it is a silent contract break. (D-H1)
-- **MUST.** Re-exported helpers must keep the same type as the source. A URL utility re-exported from `@docmd/parser` into `@docmd/api` with a different type breaks consumers silently. (D-M6)
-- **MUST.** Functions named `safe*`, `sanitize*`, `escape*`, `validate*`, `normalise*` must actually enforce the guarantee in their name. A `sanitizeUrl` that only collapses double slashes is a defect. (D-S3, D-S6, D-H6)
+- **MUST.** Playground HTML previews (`@docmd/plugin-playground`) must execute inside sandboxed iframes (`sandbox="allow-scripts allow-modals allow-forms"`) **without `allow-same-origin`**, isolating parent DOM, cookies, and storage.
+- **MUST.** Playground JavaScript execution must run inside background Web Workers so blocking or infinite loops cannot freeze the main UI thread.
+- **MUST.** Missing sourced playground scripts (`::: playground src="./missing.js" /:::`) must emit a graceful `.docmd-playground-missing-alert` warning box in normal builds rather than crashing, unless `--strict` (`DOCMD_STRICT=true`) is active.
+- **MUST.** `docmd dev` and `docmd serve` must default to binding `127.0.0.1` (only binding `0.0.0.0` when explicitly passed via `--host 0.0.0.0`, `DOCMD_HOST`, or `serve.host`). (#269)
+- **MUST.** Reflected URLs in dev/serve 404/500 responses must be HTML-escaped (`escapeHtml`), redirect `Location` headers validated against open-redirect vectors, and static/live asset paths resolved through canonical path boundary checks.
 
-# 4. i18n and versioning (no silent fallback, no silent drop)
+## 5. Gitignore & File Discovery Rules (`packages/core`)
 
-- **MUST.** A missing translation must NOT silently render the default locale's string with no signal. Either render a visible placeholder, or log a warning naming the key and locale. (T-Z4, M-8)
-- **MUST.** The search index must include every built locale, not just the default. (M-4)
-- **MUST.** Locale links must resolve the default-locale-at-root convention. A `fr/index.md` link to `/en/foo` must not 404 when `en` is the default locale living at `/`. (M-5)
-- **MUST.** Combining i18n with an explicit `versions` config must build pages. Zero pages built with no error is a silent failure. (M-6)
-- **SHOULD.** `stringMode` i18n must not emit duplicate-content HTML across locales (SEO). Emit a canonical or `hreflang` signal. (M-7)
-- **MUST.** RTL locales (`ar`, `he`, `fa`) must set `dir="rtl"` on `<html>`, not just `lang`. (T-Z5)
-- **MUST.** A missing version folder must produce a clear error naming the version, not a raw `ENOENT`. (T-Z6)
-- **MUST.** Workspace mode must not require an undocumented `prefix: "/"` to build. If a prefix is required, document it and default it. (M-2, T-Z6)
-- **SHOULD.** Ship a locale/version switcher component; do not rely on the user building one. (M-10, T-Z7)
+- **MUST.** Anchored `.gitignore` patterns (e.g. `/airo`) must match relative to the directory containing that `.gitignore` (or project root), never as an unanchored substring against the full absolute OS filesystem path. (#244)
+- **MUST.** Unanchored exclusion patterns in ancestor directories must not over-exclude project source files — scope `.gitignore` traversal strictly to the project/source boundary. (#274)
 
-# 5. Deploy templates and Docker image hardening
+## 6. UI, SPA Router & Template Invariants (`packages/ui`, `packages/templates/summer`)
 
-`packages/deployer` and `docker/`.
+- **MUST.** SPA client navigation (`docmd-main.js`) must **not** re-execute inline body scripts on subsequent route transitions (preventing duplicate event listeners and DOM mutations), while firing `docmd:page-mounted` and `window.docmd.sync()`. (#270)
+- **MUST.** Syntax highlight theme stylesheets must apply immediately on initial page load in both `default` and `summer` templates without an unstyled code flash (FOUC). (#270)
+- **MUST.** Clicking the site logo when configured with an external URL (`https://...`) or root-relative workspace path must bypass SPA interception and navigate cleanly.
 
-- **MUST.** Every generated server config (Caddy, Nginx, Netlify `_redirects`/`[[redirects]]`) must ship a security header baseline: `Content-Security-Policy`, `Strict-Transport-Security`, `Referrer-Policy`, `X-Content-Type-Options`. (N-6, T-Z8)
-- **MUST.** Netlify `[[redirects]]` must not soft-404 every route. A `from = "/*" status = 200` catch-all that serves `404.html` with 200 breaks search and analytics. (T-Z9)
-- **MUST.** Deploy Dockerfiles must install the package manager the image uses (pnpm) and pin a Node base image consistent with the official docmd image. Do not hardcode `node:20` while the official image is `node:24`. (N-5, N-9)
-- **MUST.** The official Docker image must not run as root. If `corepack enable` needs root, enable it in a root build stage and drop to a non-root runtime user. (N-7, N-8)
-- **MUST.** The image must validate that the mounted `WORKDIR` is writable, and fail loudly if not, rather than crashing on first write. (N-1, N-18)
-- **SHOULD.** Healthcheck and `EXPOSE` must honour a configurable port; if the default port is taken, the healthcheck must hit the actual listening port. (N-19)
+## 7. CLI Honesty, Subprocesses & Diagnostics (`packages/core`, `packages/tui`)
 
-# 6. Migration correctness
+- **MUST.** Never use `execSync` with string interpolation for package managers, `doctor`, or search indexing — always use `spawnSync` / `execFile` with explicit argument arrays and `shell: false`.
+- **MUST.** Honour `--no-open` and `DOCMD_NO_OPEN=true` across `dev`, `serve`, `live`, and test runners so headless/CI environments never spawn browser windows.
+- **MUST.** Honour `--strict` (`DOCMD_STRICT=true`) and `--json` across `validate` and `doctor`, returning non-zero exit codes on errors.
+- **MUST.** The official Docker image (`docker/Dockerfile` and `deploy --docker`) must run as a non-root user, validate writable `WORKDIR`, default to `docmd serve --host 0.0.0.0`, and wire `HEALTHCHECK` to `GET /healthz`.
 
-`docmd migrate` and `docmd migrate --upgrade`.
+## 8. Build Tree Hygiene & Test Isolation (`tools/`, `tests/`)
 
-- **MUST.** `migrate` must translate navigation structure, not just files. MkDocs `nav:` and Docusaurus sidebars must map to docmd nav. (N-9)
-- **MUST.** `migrate` must translate frontmatter aliases (`id`, `sidebar_label`, `sidebar_position`) to docmd equivalents. (T-Z17)
-- **MUST.** `migrate --upgrade` must upgrade ALL known legacy keys, not a subset. (N-4)
-- **MUST.** `migrate --upgrade` must not rewrite `out` to a different value than the original without warning. (N-22)
-- **SHOULD.** `migrate` must report the backup location in machine-parseable form (`--json`) for scripting. (N-21)
-- **SHOULD.** `migrate` must handle monorepo / multi-config layouts, or refuse with a clear message. (N-20)
-- **SHOULD.** Provide `migrate --dry-run` with a diff before writing anything. (N-3)
-
-# 7. CLI command honesty
-
-- **MUST.** Exit codes are a contract. Build failure, validation failure, and "command did nothing" must exit non-zero. Never exit 0 on an error path. (T-F6, M-12)
-- **MUST.** No accepted-but-unused flags. `deploy --force`, `--dry-run`, `--json`, `--cwd` must change observable behaviour or be rejected as unknown. (N-3, M-2, N-14)
-- **MUST.** No silent no-ops. `add <plugin>` must work for `.ts`, `.mjs`, and `.cjs` configs, or refuse with a message; `remove <plugin>` must also remove the config entry. (M-3, T-F7)
-- **MUST.** Validation errors must produce a readable message, never a raw stack trace. (T-F8)
-- **SHOULD.** `validate` must not false-positive valid links because of a trailing slash. (M-1)
-- **SHOULD.** `stop` must shut the dev server down gracefully. (M-11)
-- **SHOULD.** Unknown config keys must warn with the key name and a suggestion, not be silently dropped. (T-Z3)
-
-# 8. Rendering and content
-
-- **MUST.** Exactly one `<h1>` per page. Title frontmatter plus an in-body `# H1` produces two; strip one. (T-Z15)
-- **MUST.** Machine-readable outputs (`llms.txt`, `llms-full.txt`, `search-index.json`) must escape or strip untrusted content. An XSS payload or internal path must not leak into `llms.txt`. (T-Z10)
-- **MUST.** No CSV injection: frontmatter values exported to CSV must be prefixed-neutralised (strip leading `=`, `+`, `-`, `@`). (T-Z11)
-- **MUST.** Unicode filenames and unknown locales must not be silently dropped; warn naming the file or locale. (T-Z12, T-Z16)
-- **SHOULD.** Mermaid diagrams should validate at build time, not only render client-side. (T-Z13)
-- **SHOULD.** The default `init` `index.md` must contain a working `::: button` example. (T-F9)
-
-# 9. TUI and UX
-
-- **SHOULD.** Respect `NO_COLOR` and provide `--no-banner`. (N-13, N-16)
-- **SHOULD.** Show the docmd version in `--help`. (N-17)
-- **SHOULD.** Surface errors at a glance in the TUI, and honour `--json` for machine-readable output on every command. (N-11, N-12, N-14)
-- **SHOULD.** Keep the TUI informative during a long dev-server build. (N-15)
-
-# 10. Performance and engines
-
-- **MUST.** Engine fallback must be loud. If the Rust engine falls back to JS (glibc mismatch, missing binary), emit one warning line with the cause and a hint. Silent fallback hides the performance regression. (T-S9, M-9)
-- **SHOULD.** Provide per-platform binaries and auto-resolve on Mac ARM; do not require manual download. (M-18)
-- **SHOULD.** Keep build scaling honest: benchmark at 1000 pages and note the curve. Sub-linear is expected; a cliff needs investigation. (M-13)
+- **MUST.** `pnpm -r run build` and `pnpm prep` must leave a **100% clean `git status` working tree** — transient generated files or test artifacts must never dirty tracked or untracked paths in the repo. (#275)
+- **MUST.** Every integration and unit test must allocate its own isolated temporary fixture directory per test process so parallel test execution (`tests/runner.js`) has zero race conditions. (#276)
+- **MUST.** `pnpm prep` must pass `pnpm audit --audit-level=high` with zero high/critical CVEs.
 
 ---
 
-# Before you ship (gate)
+## Before You Ship (Gate)
 
-Run this before marking any framework change done.
-
-1. Generic Node triage: `ai-dev` `nodejs-cautions.md` §1.1 grep checklist + Appendix 5-minute review.
-2. `ai-dev` `security-must-checks.md` Rules 1 to 7, with docmd's common-miss spots in mind.
-3. Sections 1 to 10 above that touch the area you changed.
-4. `pnpm prep` (the 7-pillar E2E pipeline) for anything non-trivial.
-5. One regression test per bug class fixed, named after the report ID where possible.
-
-If any MUST is unresolved, the change is not done.
+1. Run the relevant sections (1–8) above for every package your change touches.
+2. Run `pnpm lint` and `pnpm prep` (or `pnpm test` + `pnpm build` + `git status --porcelain`).
+3. Verify `git status --porcelain` is empty of any build/test side-effects.
+4. Include a regression test covering the bug class or feature added.

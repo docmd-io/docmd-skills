@@ -1,249 +1,88 @@
 ---
-description: Link validation and CI/CD integration for docmd. Use when checking for broken links or setting up continuous integration.
-when_to_use: |
-  Read this file when you are:
-  - Adding `docmd validate` to a CI pipeline (GitHub Actions, GitLab, CircleCI, pre-commit)
-  - Parsing `--json` output programmatically
-  - Deciding what to skip via `.docmdignore`
-  - Diagnosing false-positive broken-link reports
-audience: user
+title: Validation, Diagnostics & Troubleshooting
+description: Reference for docmd validate, docmd doctor, strict mode, link checker rules, and common build/runtime diagnostics in docmd 0.10.0.
 verified_against:
-  docmd: "0.8.7"
-  tested_on: 2026-06-19
+  docmd: "0.10.0"
+  tested_on: 2026-11-14
 ---
 
-# Validation Reference
+# Validation, Diagnostics & Troubleshooting
 
-`validate` is not the same as `build` — a green build does not mean links work. Build runs the engine; validate runs the linter. Run both in CI.
+## 1. Content & Link Validation (`docmd validate`)
 
-Full docs: CLI Commands - https://docs.docmd.io/reference/cli-commands/
-
-## Commands {#commands}
+`docmd validate` scans your configuration, navigation tree, internal Markdown links, and asset references without emitting a production build.
 
 ```bash
-# Lint all internal markdown links — terminal-formatted output
+# Interactive validation report
 docmd validate
 
-# Machine-readable JSON array for CI/CD pipelines
-npx @docmd/core validate --json
+# Fail with exit code 1 on any warning (recommended in CI)
+docmd validate --strict
+
+# Machine-readable JSON output for CI pipelines or AI agents
+docmd validate --json
 ```
 
-`validate` does not run the build. It only checks link targets.
+### Link & Asset Checker Rules (`v0.10.0`)
 
-## What It Checks {#what-it-checks}
+The built-in validator in `docmd 0.10.0` includes several accuracy improvements:
 
-Validates:
-- Relative markdown links (`[text](./path.md)`)
-- Directory links (`[text](./guide/)`)
-- Index file references (`[text](./guide)`)
-- Local image/asset paths
+1. **Fenced Code Block Exclusion**: Links inside fenced code blocks (```` ``` ```` or `~~~`) and inline code spans are ignored so example URLs never trigger false-positive broken-link warnings.
+2. **Markdown Link Titles**: Links with titles (`[Guide](./guide.md "Read the guide")`) strip the quoted title before resolving the target path.
+3. **Root `/assets/` Resolution**: References to `/assets/...` resolve directly against your project root `assets/` (and `public/`) directories.
+4. **Empty Alt-Text Images**: Standard decorative Markdown images (`![](./diagram.svg)`) are validated alongside titled images.
+5. **Exclusion Boundary**: Files matching `config.exclude` or `.gitignore` (unless `respectGitIgnore: false`) are skipped during validation.
 
-Skips:
-- External URLs: `http://`, `https://`
-- Email links: `mailto:`
-- Phone links: `tel:`
-- Anchor-only links: `#section`
-- `external:` prefixed links
+---
 
-External URLs are not validated by default. If a GitHub link 404s in your published docs, `validate` will not catch it.
+## 2. Environment & Plugin Health Checks (`docmd doctor`)
 
-## Output Format {#output-format}
-
-### Terminal Output (default) {#terminal-output}
-
-```
-✓ docs/index.md
-✓ docs/getting-started.md
-✗ docs/api/config.md
-  → Broken link: ./missing.md (line 42)
-
-Found 1 broken link in 12 pages
-```
-
-### JSON Output (`--json`) {#json-output}
-
-```json
-[
-  {
-    "file": "docs/api/config.md",
-    "link": "./missing.md",
-    "line": 42,
-    "column": 5
-  }
-]
-```
-
-The JSON output is a bare array, not an object with a `results` or `errors` wrapper. Empty result = `[]`.
-
-## CI/CD Integration {#cicd}
-
-### GitHub Actions {#cicd-gha}
-
-```yaml
-name: Validate Docs
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: '20'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Validate links
-        run: npx @docmd/core validate --json > validation.json
-      
-      - name: Check for broken links
-        run: |
-          if [ $(jq length validation.json) -gt 0 ]; then
-            echo "Found broken links:"
-            jq '.' validation.json
-            exit 1
-          fi
-```
-
-### GitLab CI {#cicd-gitlab}
-
-```yaml
-validate:
-  image: node:20
-  script:
-    - npm ci
-    - npx @docmd/core validate --json > validation.json
-    - |
-      if [ $(jq length validation.json) -gt 0 ]; then
-        echo "Found broken links:"
-        jq '.' validation.json
-        exit 1
-      fi
-  only:
-    - main
-    - merge_requests
-```
-
-### CircleCI {#cicd-circleci}
-
-```yaml
-version: 2.1
-
-jobs:
-  validate:
-    docker:
-      - image: cimg/node:20
-    steps:
-      - checkout
-      - run: npm ci
-      - run:
-          name: Validate links
-          command: |
-            npx @docmd/core validate --json > validation.json
-            if [ $(jq length validation.json) -gt 0 ]; then
-              echo "Found broken links:"
-              jq '.' validation.json
-              exit 1
-            fi
-
-workflows:
-  version: 2
-  build-and-validate:
-    jobs:
-      - validate
-```
-
-## MCP Tool {#mcp-tool}
-
-The MCP server exposes `validate_docs` as a tool — runs the same checks programmatically via JSON-RPC.
+Introduced in `v0.10.0`, `docmd doctor` inspects your runtime environment, Node.js version (`>= 20.0.0`), configuration validity, git repository state, and every active plugin's `onDoctorCheck()` hook:
 
 ```bash
-docmd mcp  # Start MCP server
+# Run all core and plugin diagnostics
+docmd doctor
+
+# Automatically apply safe fixes (e.g. missing directories or peer dependencies)
+docmd doctor --fix
+
+# Output structured JSON diagnostics
+docmd doctor --json
 ```
 
-Tool: `validate_docs`
+### What `docmd doctor` Checks
 
-Input: `{}`
+| Category | Check | Resolution |
+|----------|-------|------------|
+| **Runtime** | Node.js `>= 20.0.0` | Upgrade Node.js to v20 LTS or v22 LTS |
+| **Config** | `docmd.config.js` syntax & schema | Run `docmd migrate --dry-run` if legacy keys are detected |
+| **Dependencies** | Missing optional plugins, templates, or `docmd-search` | Run `docmd doctor --fix` or `docmd build` (triggers batch pre-flight auto-install) |
+| **Git** | Shallow clone detection when `@docmd/plugin-git` is active | Use `fetch-depth: 0` in GitHub Actions checkout |
+| **Plugins** | Per-plugin `onDoctorCheck` diagnostics (e.g. OpenAPI spec paths, AI config, Threads storage) | Inspect reported message and suggested command |
 
-Output: Array of broken links (same format as `--json`)
+---
 
-The MCP `validate_docs` tool returns its result as a `content[].text` string (per [SKILL.md §4](../SKILL.md#4-mcp-server)), not as a parsed JSON array. `JSON.parse` the text before iterating.
+## 3. Strict Mode (`--strict` / `DOCMD_STRICT=true`)
 
-## Pre-commit Hook {#pre-commit}
+Both `docmd build` and `docmd validate` accept `--strict` (or `DOCMD_STRICT=true`):
 
-Add to `.pre-commit-config.yaml`:
-
-```yaml
-repos:
-  - repo: local
-    hooks:
-      - id: docmd-validate
-        name: Validate docmd links
-        entry: npx @docmd/core validate
-        language: system
-        pass_filenames: false
-        always_run: true
+```bash
+docmd build --strict
+DOCMD_STRICT=true docmd validate
 ```
 
-Pre-commit hooks run against staged changes only by default, but `validate` scans the whole repo, which makes the hook slow on large repos.
+In strict mode, any broken internal link, missing asset, unclosed container, or missing playground `src` file terminates the command with exit code `1`.
 
-## Common Issues {#common-issues}
+---
 
-### False Positives {#false-positives}
+## 4. Common Troubleshooting Scenarios
 
-If you have dynamic routes or external content, create a `.docmdignore` file:
-
-```
-# Skip validation for specific patterns
-docs/dynamic/*.md
-docs/legacy/**/*.md
-```
-
-`.docmdignore` uses gitignore-style globs, not regex. `docs/dynamic/*.md` matches one level; `docs/dynamic/**` matches deeper.
-
-### Relative Path Resolution {#path-resolution}
-
-docmd resolves links relative to the source file:
-
-```markdown
-# In docs/api/config.md
-
-[Getting Started](../getting-started.md)  # → docs/getting-started.md
-[CLI](./cli.md)                           # → docs/api/cli.md
-[Index](../../)                           # → docs/index.md
-```
-
-`[Index](../../)` (trailing slash, no filename) resolves to the directory's `index.md`, not the directory itself.
-
-### Case Sensitivity {#case-sensitivity}
-
-On case-insensitive filesystems (macOS, Windows), validation is case-insensitive.
-On CI (Linux), validation is case-sensitive — ensure consistent casing.
-
-Case sensitivity mismatches are a common cause of "works on my Mac, fails in CI" doc bugs. Always run `validate` in a Linux-based CI runner.
-
-## Exit Codes {#exit-codes}
-
-- `0` — No broken links
-- `1` — Broken links found
-- `2` — Configuration error
-- `3` — Plugin error (when called via `build`, not `validate`)
-
-`validate` only emits codes 0, 1, and 2. Plugin errors (code 3) are a `build` thing.
-
-## See Also {#see-also}
-
-- [SKILL.md §2](../SKILL.md#2-core-commands) — where `validate` fits in the command table
-- [SKILL.md §7](../SKILL.md#7-compatibility-notes) — compatibility notes across the whole tool
-- [cli.md](./cli.md) — `validate` flags and global exit-code table
-- [deployment.md](./deployment.md) — full CI/CD pipeline examples
-- [migration.md](./migration.md) — running `validate` after migrating from another tool
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Nested `::: callout` or `::: tabs` closes early | Generic `:::` closer matched the inner container | Use explicit closing tags (`::: /callout`, `::: /tabs`, `::: /tab`, `::: /steps`, `::: /step`) |
+| `{{ variable }}` renders literally or strips content | Variable name is undefined and has no fallback, or you wanted literal braces | Define the key in `variables: {}` / `DOCMD_VAR_*`, add a fallback `{{ var \|\| "default" }}`, or escape literal braces with `\{{ var }}` |
+| `robots.txt` or `CNAME` is placed under `/assets/` instead of `/` | File was placed in `assets/` instead of `public/` | Move root-level static files into the top-level `public/` directory |
+| `@docmd/plugin-threads` comment button does not submit under `docmd serve` | `docmd serve` is read-only by default | Enable `serve.actions.enabled: true` in `docmd.config.js` |
+| `docmd mcp` fails to parse in Cursor / Claude Desktop | Older version printed startup banner to `stdout` | Upgrade to `@docmd/core >= 0.10.0` (TUI banner is suppressed on `mcp` for clean `stdio` JSON-RPC) |
+| Mermaid diagrams fail to render on `file://` | Older config loaded Mermaid from an external CDN | `@docmd/plugin-mermaid` in `0.10.0` bundles Mermaid locally via an offline IIFE script automatically |
+| Playground `src="./example.js"` fails to render | File path does not exist relative to page or project root | Verify path relative to the `.md` file or `src` directory; run `docmd validate --strict` |

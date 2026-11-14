@@ -1,33 +1,42 @@
 # docmd-skills
 
-Skills that teach AI agents how to work with [docmd](https://github.com/docmd-io/docmd) — the zero-config AI-first documentation engine.
+Modular AI agent skills for [docmd](https://github.com/docmd-io/docmd) (`v0.10.0`) — the zero-config, AI-first documentation engine.
 
-## Skills
+All three skills are **sibling skills** that can be installed together, loaded individually on demand, or cross-referenced by agents when tasks span site operations, framework development, and technical writing.
 
-| Skills     | Use Case |
-| ---------- | -------- |
-| **docmd-skills** | A docmd site operator. Knows the `npx @docmd/core` CLI, `docmd.config.json`, plugins, themes, deployment, and the `docmd mcp` server. Loads whenever the user is building, configuring, validating, or deploying a docmd site. |
-| **docmd-dev** | A docmd framework contributor. Knows the monorepo layout, how to author plugins and templates, the JS / Rust engine loaders, and the public Node API (`EngineLoader`, `createActionDispatcher`, `TemplateSlot`). Loads when working in the cloned `docmd/` monorepo or building a plugin or template against the framework. |
-| **docmd-writer** | A multi-language documentation writer. Drafts and reviews prose in any language the underlying model supports, with SEO awareness and an eye for voice, structure, and the right doc type for the audience. Aware of docmd's markdown conventions — containers, frontmatter, and the file-title rule for code blocks. Loads when writing, reviewing, or translating the prose inside a docmd site. |
+## Sibling Skills
+
+| Skill | Audience | Use Case |
+| ----- | -------- | -------- |
+| **[`docmd-skills`](./skills/docmd-skills/SKILL.md)** | Site Operators & Users | Covers the `@docmd/core` CLI (`init`, `dev`, `build`, `serve`, `doctor`, `validate`, `migrate`, `live`, `mcp`, `add`, `remove`), `docmd.config.js`, Variables & Personalisation (`{{ var }}` & `window.docmd.var`), custom containers & explicit `::: /type` closers, interactive Playgrounds (`::: playground`), native MDX (`.mdx`), 12 core + 4 optional plugins (including OKF, AI, Search, OpenAPI, Threads, Iconify), `public/` static root copying, `docmd serve` production hosting, multi-project workspaces, and the 6-tool MCP server (`stdio` and `POST /mcp`). |
+| **[`docmd-dev`](./skills/docmd-dev/SKILL.md)** | Framework Developers | Covers the `docmd` monorepo architecture (`packages/*` + `@docmd/lite-*`), `@docmd/api` contracts (`loadPlugins`, `resolveTemplate`, `createActionDispatcher`, `runPluginDoctorChecks`), the 14 plugin capabilities (`package.json#docmd`), the 12 `TemplateSlot` entries and asset priority chain (`0`–`25+`), JS / Rust N-API / Python 3.8+ engines, and the v0.10.0 security & regression checklist. |
+| **[`docmd-writer`](./skills/docmd-writer/SKILL.md)** | Documentation Writers | Covers Diátaxis document types (Tutorial, How-To, Reference, Explanation) mapped to OKF `type` metadata, British English voice and style, universal page skeleton, code-block file-title rules, runnable vs illustrative vs interactive `playground` blocks, and variable escaping (`\{{ ... }}`). Defers syntax mechanics to `docmd-skills`. |
 
 ## Install
 
 ```bash
-npx docmd-skills [dir]
+# Install all 3 sibling skills into your agent skills directory
+npx docmd-skills ~/.claude/skills/docmd
+
+# Or install/update any single sibling skill on demand
+npx docmd-skills user ~/.claude/skills/docmd
+npx docmd-skills dev ~/.claude/skills/docmd
+npx docmd-skills writer ~/.claude/skills/docmd
 ```
 
-Replace `[dir]` with the directory location where you keep agent skills — common choices are `~/.claude/skills/`, `~/.cursor/skills/`, or a project-level folder like `./.skills/`.
+Common target directories include `~/.claude/skills/`, `~/.cursor/skills/`, `~/.copilot/skills/`, or a project-local `.skills/` folder.
 
-## CLI
+## CLI Reference
 
 ```bash
-docmd-skills [dir]                  # Install (adds docmd-skills, docmd-dev and docmd-writer)
-docmd-skills dev [dir]              # Add docmd-dev
-docmd-skills writer [dir]           # Add docmd-writer
-docmd-skills remove [dir]           # Remove all docmd-skills
+docmd-skills <dir>                  # Install all 3 sibling skills (docmd-skills, docmd-dev, docmd-writer)
+docmd-skills user <dir>             # Install or update docmd-skills (site operator/user skill)
+docmd-skills dev <dir>              # Install or update docmd-dev (framework developer skill)
+docmd-skills writer <dir>           # Install or update docmd-writer (documentation writer skill)
+docmd-skills remove <dir>           # Remove all installed docmd skills
 
 -h, --help                          # Show help
--v, --version                       # Show version
+-v, --version                       # Show version (1.3.0 — verified against docmd 0.10.0)
 ```
 
 ## Links
@@ -35,7 +44,7 @@ docmd-skills remove [dir]           # Remove all docmd-skills
 - GitHub — <https://github.com/docmd-io/docmd-skills>
 - npm — <https://www.npmjs.com/package/docmd-skills>
 - docmd — <https://github.com/docmd-io/docmd>
-- docs — <https://docs.docmd.io>
+- Documentation — <https://docs.docmd.io>
 
 ## License
 

@@ -1,179 +1,185 @@
 ---
-description: Reference for docmd CLI commands, flags, and options. Use when running docmd commands or understanding CLI capabilities.
+description: Reference for docmd CLI commands, flags, environment variables, and exit codes. Use when running docmd commands (`init`, `dev`, `build`, `serve`, `doctor`, `validate`, `live`, `stop`, `deploy`, `migrate`, `mcp`, `add`, `remove`).
 when_to_use: |
   Read this file when you are:
-  - Looking up a flag for a specific command (`--offline`, `--port`, `--json`, `--force`, etc.)
-  - Deciding which subcommand to run (init vs dev vs build vs live vs deploy vs validate vs mcp)
-  - Wiring docmd into a CI pipeline (exit codes, `--json` output, `--config` overrides)
-  - Understanding which package manager `docmd add` will use
+  - Looking up a command or flag (`--host`, `--no-open`, `--strict`, `--offline`, `--port`, `--json`, `--fix`, `--force`, `--dry-run`, `-y`)
+  - Deciding between `docmd dev` (local HMR), `docmd build` (static output), and `docmd serve` (production HTTP server with `/healthz`, `/mcp`, and `serve.actions`)
+  - Running `docmd doctor` (with `--fix` or `--json`) to audit environment, routes, assets, and plugins
+  - Running docmd in headless / AI agent / CI environments (`--no-open` / `DOCMD_NO_OPEN=true`, `--strict` / `DOCMD_STRICT=true`)
 audience: user
 verified_against:
-  docmd: "0.8.7"
-  tested_on: 2026-06-19
+  docmd: "0.10.0"
+  tested_on: 2026-11-14
 ---
 
 # CLI Reference
 
 Full docs:
-* CLI Commands - https://docs.docmd.io/reference/cli-commands/
+* CLI Commands — https://docs.docmd.io/reference/cli-commands/
+* Production Server (`docmd serve`) — https://docs.docmd.io/deployment/docmd-serve
 
 ## Installation {#installation}
 
 ```bash
-# Install as dev dependency
+# Install as dev dependency (Node.js >= 20 required)
 npm install -D @docmd/core
-
-# Or use pnpm/yarn/bun
 pnpm add -D @docmd/core
 yarn add -D @docmd/core
 bun add -D @docmd/core
 
-# Zero-install runner (no global install needed)
-npx @docmd/core <command>
+# Zero-install runner
+npx @docmd/core <command> [options]
 ```
 
-## Commands {#commands}
+## Commands Overview {#commands}
 
 | Command | Description |
 |:--|:--|
-| `docmd init` | Scaffold new project — creates `docs/index.md`, `docmd.config.json`, `package.json` scripts, and `SKILL.md` |
-| `docmd dev` | Start dev server with hot reload. Default port `3000`, auto-increments if busy |
-| `docmd build` | Build production static site to `site/` directory |
-| `docmd live` | Launch browser-based Live Editor — isomorphic engine runs in-browser for instant preview |
-| `docmd stop` | Kill running dev servers on common ports |
-| `docmd deploy` | Generate deployment configs for Docker, nginx, Caddy, Vercel, Netlify, GitHub Pages |
-| `docmd migrate` | Upgrade legacy config keys to modern schema (e.g. `siteTitle` → `title`) |
-| `docmd validate` | Lint all internal markdown links. Use `--json` for CI/CD output |
-| `docmd mcp` | Start MCP server over stdio for AI agent integration (JSON-RPC 2.0) |
-| `docmd add <plugin>` | Install official plugin — auto-detects package manager, injects config |
-| `docmd remove <plugin>` | Uninstall plugin and clean its config entry |
+| `docmd init` | Scaffold a new project — creates `docs/index.md`, `docs/skills.md`, `docmd.config.json`, `assets/`, and `package.json` |
+| `docmd dev` | Start local development server with HMR (`127.0.0.1:3000` by default; auto-increments port if busy) |
+| `docmd build` | Compile production static site to `site/` (or configured `out` directory) |
+| `docmd serve` | Build once and run the production HTTP server (Gzip/Deflate, security headers, `GET /healthz`, opt-in `POST /mcp` & `serve.actions`) |
+| `docmd doctor` | Run pre-flight environment, asset, navigation route, template, and plugin diagnostics (`--fix` auto-installs missing official deps) |
+| `docmd validate` | Lint internal markdown links, images, and assets (`--json` for CI, `--strict` to fail on any missing reference) |
+| `docmd live` | Launch browser-based Live Editor (`--build-only` to emit bundle without starting server) |
+| `docmd stop` | Terminate active `docmd dev` and `docmd serve` servers |
+| `docmd deploy` | Generate deployment configs for Docker, nginx, Caddy, Vercel, Netlify, or GitHub Pages |
+| `docmd migrate` | Migrate from Docusaurus, MkDocs, VitePress, Starlight, or upgrade legacy docmd configs (`--upgrade`, `--dry-run`) |
+| `docmd mcp` | Start Model Context Protocol (MCP) server over `stdio` (pure JSON-RPC 2.0, banner suppressed) |
+| `docmd add <name>` | Install an official plugin or template (`@docmd/plugin-*` / `@docmd/template-*`) and inject config |
+| `docmd remove <name>` | Uninstall a plugin/template and remove its config entry |
 
 ## Global Flags {#global-flags}
 
-| Flag | Short | Description |
-|:--|:--|:--|
-| `--config <path>` | `-c` | Path to config file. Default: `docmd.config.json` |
-| `--verbose` | `-V` | Show detailed build/install logs |
-| `--version` | `-v` | Print installed version |
-| `--help` | `-h` | Show help menu |
-| `--cwd <path>` | | Override working directory (useful for monorepos) |
+| Flag | Short | Env Var Equivalent | Description |
+|:--|:--|:--|:--|
+| `--config <path>` | `-c` | `DOCMD_CONFIG` | Path to config file (auto-discovers `docmd.config.json`, `.jsonc`, `.ts`, `.js`) |
+| `--cwd <path>` | | | Override working directory before running the command |
+| `--host <address>` | | `DOCMD_HOST` | Network interface to bind (`127.0.0.1` default; use `0.0.0.0` for LAN/Docker) |
+| `--port <number>` | `-p` | `DOCMD_PORT` / `PORT` | Server port (default: `3000`) |
+| `--no-open` | | `DOCMD_NO_OPEN=true` | Never auto-open a browser window (always pass in CI, Docker, or AI agent sessions) |
+| `--strict` | | `DOCMD_STRICT=true` | Fail build/validation with exit code `1` on any missing sourced file, asset, or broken container |
+| `--verbose` | `-V` | `DOCMD_VERBOSE=true` | Print detailed build, plugin, and package manager logs |
+| `--json` | | | Output machine-readable JSON (`validate`, `doctor`) and suppress TUI banner |
+| `--version` | `-v` | | Print installed `@docmd/core` version |
+| `--help` | `-h` | | Print CLI help |
 
-## Command-Specific Flags {#command-specific-flags}
+## Command-Specific Flags & Behaviour {#command-specific-flags}
 
-### dev {#dev}
+### `init` {#init}
 
-- `--port <n>` (`-p`) — Server port. Default: `3000`
+- `--force` — Overwrite existing `docmd.config.*`, `docs/index.md`, and `docs/skills.md`
+- `--yes` (`-y`) — Answer "yes" to prompts in non-interactive/CI shells
 
-Note: `docmd dev` auto-increments the port when 3000 is busy. The actual port is printed in the startup log line; scripts should parse it from there rather than hardcoding 3000.
+### `dev` {#dev}
 
-### build {#build}
+- `--port <n>` (`-p`) — Starting port (default `3000`; auto-increments to `3001`, etc., if busy)
+- `--host <address>` — Bind address (default `127.0.0.1`; pass `--host 0.0.0.0` to expose on LAN/container)
+- `--no-open` — Do not open the system browser on startup
 
-- `--offline` — Rewrite links to `.html` for local `file://` browsing
+> **Tip for AI agents:** Always run `npx @docmd/core dev --no-open` (or set `DOCMD_NO_OPEN=true`) when starting the dev server from an automated shell.
 
-Note: `build --offline` rewrites every internal link to end in `.html`, which is incompatible with SPA navigation. Use it only for `file://` distribution, not as a substitute for `dev`.
+### `build` {#build}
 
-### deploy {#deploy}
+- `--offline` (`DOCMD_OFFLINE=true`) — Rewrite internal links to `.html` suffixes and bypass external network fetches for local `file://` browsing
+- `--strict` — Fail immediately if any sourced playground script (`src="..."`) or referenced asset is missing
 
-- `--docker` — Generate Dockerfile
-- `--nginx` — Generate nginx config
-- `--caddy` — Generate Caddy config
-- `--github-pages` — Generate GitHub Pages workflow
-- `--vercel` — Generate Vercel config
-- `--netlify` — Generate Netlify config
-- `--force` — Overwrite existing files
+> Note: `--offline` output is for `file://` zip distribution and is incompatible with SPA routing on web hosts.
 
-Note: `docmd deploy` generates config files but does not perform the deployment. Use the corresponding platform CLI (`vercel`, `netlify`, `docker build`, etc.) to push.
+### `serve` (New in v0.10.0) {#serve}
 
-### stop {#stop}
-
-- `--port <n>` (`-p`) — Kill server on specific port
-- `--force` (`-f`) — Also kill `serve` processes
-
-### validate {#validate}
-
-- `--json` — Output JSON array of broken links for CI pipelines
-
-### live {#live}
-
-- `--build-only` — Generate Live Editor bundle without starting server
-- `--port <n>` (`-p`) — Server port for Live Editor
-
-## Zero-Config Mode {#zero-config-mode}
-
-If no `docmd.config.json` exists, the engine auto-detects source from:
-- `docs/`
-- `src/docs/`
-- `documentation/`
-- Any folder with `.md` files
-
-Navigation, titles, search, and TOC are set up automatically.
-
-## Examples {#examples}
-
-### Initialize New Project {#initialize-new-project}
+Builds the site once in production mode and serves it with Gzip/Deflate compression, CSP/HSTS/Frame security headers, and zero file-watching overhead:
 
 ```bash
-npx @docmd/core init
-# Creates: docs/index.md, docmd.config.json, package.json scripts
+npx @docmd/core serve
+npx @docmd/core serve --host 0.0.0.0 --port 8080
 ```
 
-### Development Server {#development-server}
+- `--host <address>` — Precedence: `--host` → `DOCMD_HOST` → `config.serve.host` → `127.0.0.1`
+- `--port <number>` (`-p`) — Precedence: `--port` → `PORT` → `config.serve.port` → `3000`. Unlike `dev`, **`serve` exits with code `1` if the port is already in use**.
+- Exposes `GET /healthz` (`503` with `Retry-After: 1` during initial build; `200` `{"status":"ok","version":"..."}` once ready).
+- Supports opt-in `POST /mcp` (`serve.mcp.enabled: true`) and authenticated WebSocket plugin actions (`serve.actions.enabled: true`). See [deployment.md](./deployment.md#production-server-docmd-serve).
+
+### `doctor` (New in v0.10.0) {#doctor}
+
+Runs non-destructive pre-flight diagnostics across your environment and project:
 
 ```bash
-docmd dev
-docmd dev --port 4000
-docmd dev --config ./custom.config.json
+npx @docmd/core doctor
+npx @docmd/core doctor --fix
+npx @docmd/core doctor --json
 ```
 
-### Production Build {#production-build}
+- `--fix` — Automatically installs missing official `@docmd/plugin-*` or `@docmd/template-*` packages using your detected package manager
+- `--json` — Emits structured JSON diagnostics for CI pipelines
+- Checks: Node.js version (`>=20`), OS/architecture, engine availability (`js`, `rust`, `python`), `src` directory, logo/favicon/banner image paths on disk, `navigation.json` / `config.navigation` route targets against `.md`/`.mdx` files, installed vs missing plugins/templates, and custom plugin `onDoctorCheck` hooks.
+
+### `validate` {#validate}
 
 ```bash
-docmd build
-docmd build --offline  # For file:// browsing
-docmd build --config ./prod.config.json
+npx @docmd/core validate
+npx @docmd/core validate --json
+npx @docmd/core validate --strict
 ```
 
-### Deploy Configuration {#deploy-configuration}
+- `--json` — Outputs a JSON array of broken links (`[]` when clean)
+- `--strict` — Enforces strict validation failure rules
+
+### `migrate` {#migrate}
 
 ```bash
-docmd deploy --docker --nginx
-docmd deploy --vercel --netlify --force
+npx @docmd/core migrate --docusaurus
+npx @docmd/core migrate --mkdocs
+npx @docmd/core migrate --vitepress
+npx @docmd/core migrate --starlight
+npx @docmd/core migrate --upgrade
+npx @docmd/core migrate --upgrade --dry-run
 ```
 
-### Validation in CI/CD {#validation-in-cicd}
+- `--docusaurus` / `--mkdocs` / `--vitepress` / `--starlight` — Migrate from another framework (backs up original to `<source>-backup/`)
+- `--upgrade` — Upgrade legacy docmd config keys in-place
+- `--dry-run` — Preview migration changes without writing to disk
+- Calling `docmd migrate` with no source flag prints usage and exits with code `1`.
+
+### `deploy` {#deploy}
 
 ```bash
-docmd validate --json > validation.json
-# Check exit code or parse JSON output
+npx @docmd/core deploy --docker --nginx --caddy --vercel --netlify --github-pages [--force]
 ```
 
-### MCP for AI Agents {#mcp-for-ai-agents}
+- Generates deployment config files in the project root (does not push to cloud providers). Use `--force` to overwrite existing files.
+
+### `stop` {#stop}
+
+- `--port <n>` (`-p`) — Stop server on a specific port
+- `--force` (`-f`) — Stop servers across standard ports (`3000`, `3001`, `8080`, `8081`)
+
+### `mcp` {#mcp}
 
 ```bash
-docmd mcp
-# Starts JSON-RPC 2.0 server over stdio
+npx @docmd/core mcp
 ```
 
-## Package Manager Detection {#package-manager-detection}
+- Starts the Model Context Protocol server over `stdio` (JSON-RPC 2.0). TUI banners are automatically suppressed on `stdout` so MCP clients (Claude Desktop, Cursor, Windsurf, Claude Code) receive clean protocol frames.
 
-`docmd add` and `docmd remove` auto-detect your package manager by lockfile presence:
-1. Checks for `pnpm-lock.yaml` → uses pnpm
-2. Checks for `yarn.lock` → uses yarn
-3. Checks for `bun.lockb` → uses bun
-4. Falls back to npm
+## Package Manager & Pre-Flight Auto-Detection {#package-manager-detection}
+
+`docmd add`, `docmd remove`, `docmd doctor --fix`, and the build-time pre-flight installer (`preflightEnsureRuntimeDeps`) detect your package manager by lockfile:
+1. `pnpm-lock.yaml` → `pnpm`
+2. `yarn.lock` → `yarn`
+3. `bun.lockb` → `bun`
+4. Fallback → `npm`
 
 ## Exit Codes {#exit-codes}
 
 - `0` — Success
-- `1` — Build/validation error
+- `1` — Build, validation, `serve` port/config, `migrate` missing-arg, or `doctor` error
 - `2` — Configuration error
-- `3` — Plugin error
+- `3` — Fatal plugin error
 
 ## See Also {#see-also}
 
-- [SKILL.md §2](../SKILL.md#2-core-commands) — which command to reach for in most cases
-- [SKILL.md §4](../SKILL.md#4-mcp-server) — full MCP section
-- [config.md](./config.md) — site config that the CLI consumes
-- [api.md](./api.md) — programmatic equivalent of these commands
-- [deployment.md](./deployment.md) — what `docmd deploy` actually generates
-- [validation.md](./validation.md) — CI/CD patterns for `validate --json`
+- [config.md](./config.md) — `docmd.config.json` schema consumed by the CLI
+- [deployment.md](./deployment.md) — `docmd serve` and `docmd deploy` in detail
+- [validation.md](./validation.md) — `docmd validate` and `docmd doctor` CI workflows
+- [api-user.md](./api-user.md) — programmatic equivalents (`buildSite`, `dev`, `serve`, `buildLive`) and MCP tools
